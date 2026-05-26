@@ -817,14 +817,17 @@
     /* FAB */
     .fab {
       position: fixed; bottom: 32px; right: 32px;
-      width: 56px; height: 56px; border-radius: 16px;
-      background: var(--md-sys-color-primary-container);
-      color: var(--md-sys-color-on-primary-container);
+      height: 56px; border-radius: 16px;
+      background: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
       display: flex; align-items: center; justify-content: center;
-      box-shadow: var(--card-shadow); cursor: pointer;
+      padding: 0 24px; gap: 12px;
+      box-shadow: 0px 4px 8px 3px rgba(0, 0, 0, 0.15), 0px 1px 3px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
       transition: all 0.2s; z-index: 1000;
+      font-family: 'Google Sans'; font-weight: 500;
     }
-    .fab:hover { box-shadow: var(--card-shadow-hover); transform: scale(1.05); }
+    .fab:hover { box-shadow: var(--card-shadow-hover); transform: translateY(-2px); filter: brightness(1.1); }
     .fab .material-symbols-outlined { font-size: 24px; font-variation-settings: 'FILL' 1; }
 
     /* ─────────────────────────────────────────
@@ -1141,7 +1144,7 @@
             </div>
             <div class="f-group">
               <label class="f-label">Team *</label>
-              <div class="m3-select-custom" id="f-team-select" onclick="toggleCustomSelect('f-team-items')">
+              <div class="m3-select-custom" id="f-team-select" onclick="toggleCustomSelect('f-team-items', event)">
                 <div class="select-selected" id="f-team-selected">
                   <span style="color:var(--text-muted)">— Select Team —</span>
                 </div>
@@ -1154,21 +1157,21 @@
             </div>
             <div class="f-group">
               <label class="f-label">Channel *</label>
-              <div class="m3-select-custom" id="f-channel-select" onclick="toggleCustomSelect('f-channel-items')">
+              <div class="m3-select-custom" id="f-channel-select" onclick="toggleCustomSelect('f-channel-items', event)">
                 <div class="select-selected" id="f-channel-selected">
                   <span style="color:var(--text-muted)">— Select Channel —</span>
                 </div>
                 <span class="material-symbols-outlined">expand_more</span>
                 <div class="select-items" id="f-channel-items">
-                  <div class="select-item" data-value="Chat" onclick="selectCustomOption(this, 'f-channel')">
+                  <div class="select-item" data-value="Chat" onclick="selectCustomOption(this, 'f-channel', event)">
                     <span class="material-symbols-outlined">chat</span>
                     <span class="select-item-name">Chat</span>
                   </div>
-                  <div class="select-item" data-value="Email" onclick="selectCustomOption(this, 'f-channel')">
+                  <div class="select-item" data-value="Email" onclick="selectCustomOption(this, 'f-channel', event)">
                     <span class="material-symbols-outlined">mail</span>
                     <span class="select-item-name">Email</span>
                   </div>
-                  <div class="select-item" data-value="Phone" onclick="selectCustomOption(this, 'f-channel')">
+                  <div class="select-item" data-value="Phone" onclick="selectCustomOption(this, 'f-channel', event)">
                     <span class="material-symbols-outlined">call</span>
                     <span class="select-item-name">Phone</span>
                   </div>
@@ -1235,8 +1238,9 @@
     </div>
   </div>
 
-  <div class="fab" id="newEscBtn" onclick="openEscalationModal()" title="New Escalation">
+  <div class="fab" id="newEscBtn" onclick="openEscalationModal()">
     <span class="material-symbols-outlined">add</span>
+    New Escalation
   </div>
 
   <!-- ══════════════════════════════════
@@ -2575,14 +2579,16 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
     /* ─────────────────────────────────────────
        ESCALATION FORM LOGIC
     ───────────────────────────────────────── */
-    function toggleCustomSelect(id) {
+    function toggleCustomSelect(id, ev) {
+      if (ev) ev.stopPropagation();
       var el = document.getElementById(id);
       var isVisible = el.classList.contains('show');
       document.querySelectorAll('.select-items').forEach(function(x) { x.classList.remove('show'); });
       if (!isVisible) el.classList.add('show');
     }
 
-    function selectCustomOption(el, hiddenId) {
+    function selectCustomOption(el, hiddenId, ev) {
+      if (ev) ev.stopPropagation();
       var val = el.getAttribute('data-value');
       var html = el.innerHTML;
       document.getElementById(hiddenId).value = val;
@@ -2620,7 +2626,7 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
         var item = document.createElement('div');
         item.className = 'select-item';
         item.setAttribute('data-value', teamName);
-        item.onclick = function() { selectCustomOption(this, 'f-team'); };
+        item.onclick = function(e) { selectCustomOption(this, 'f-team', e); };
 
         var img = document.createElement('img');
         img.src = p;
@@ -2755,10 +2761,16 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
         .submitEscalation(payload);
     }
 
-    // Initialize Autocomplete
+    // Initialize Autocomplete & Global Dropdown Closers
     window.addEventListener('DOMContentLoaded', function() {
       setupFAutocomplete('f-ldap', 'f-ldap-ac', LDAPS);
       setupFAutocomplete('f-symptom', 'f-symptom-ac', SYMS);
+
+      window.addEventListener('click', function(e) {
+        if (!e.target.closest('.m3-select-custom')) {
+          document.querySelectorAll('.select-items').forEach(function(x) { x.classList.remove('show'); });
+        }
+      });
     });
 
     function updateProfileDrawer() {
