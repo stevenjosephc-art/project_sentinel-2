@@ -418,16 +418,16 @@
     /* ─────────────────────────────────────────
        CASE CARDS (M3 Elevated & Outlined)
     ───────────────────────────────────────── */
-    .case-container{display:flex;flex-direction:column;gap:16px; padding: 16px 0;}
+    .case-container{display:flex;flex-direction:column;gap:8px; padding: 12px 0;}
     .case-row {
       background: var(--md-sys-color-surface-container-low);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       display: flex;
       flex-direction: column;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       overflow: hidden;
       border: 1px solid var(--md-sys-color-outline-variant);
-      margin-bottom: 12px;
+      margin-bottom: 4px;
     }
 
     /* M3 States */
@@ -462,17 +462,17 @@
     }
     .case-dimmed:hover { opacity: 1; transform: none; }
 
-    .row-main{padding:20px 24px;display:flex;align-items:flex-start;gap:20px;cursor:pointer;position:relative}
-    .row-checkbox-wrap{padding-top:12px}
-    .row-avatar{width:48px;height:48px;border-radius:24px;object-fit:cover;flex-shrink:0;background:var(--md-sys-color-surface-variant)}
-    .row-content{flex:1;display:flex;flex-direction:column;gap:4px;padding-right:40px}
+    .row-main{padding:12px 20px;display:flex;align-items:flex-start;gap:16px;cursor:pointer;position:relative}
+    .row-checkbox-wrap{padding-top:8px}
+    .row-avatar{width:40px;height:40px;border-radius:20px;object-fit:cover;flex-shrink:0;background:var(--md-sys-color-surface-variant)}
+    .row-content{flex:1;display:flex;flex-direction:column;gap:2px;padding-right:40px}
     .row-title{font-size:15px;font-family:'Google Sans';font-weight:700;color:var(--text-main);letter-spacing:-.2px}
     .row-sub{font-size:12px;color:var(--text-muted);margin-bottom:4px}
-    .row-tags{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
-    .tag{font-size:12px;font-weight:600;padding:6px 12px;border-radius:8px;display:flex;align-items:center;gap:6px}
-    .tag-neutral{background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant);}
-    .tag.sla-tag-safe{background:var(--md-sys-color-primary-container);color:var(--md-sys-color-on-primary-container);}
-    .tag.sla-tag-warn{background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);}
+    .row-tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px}
+    .tag{font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;display:flex;align-items:center;gap:6px}
+    .tag-neutral{background:var(--md-sys-color-surface-container-high);color:var(--md-sys-color-on-surface-variant);}
+    .tag.sla-tag-safe{background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant);}
+    .tag.sla-tag-warn{background:#FEF7E0;color:#B06000;}
     .tag.sla-tag-critical{background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);}
     .tag.blue{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);}
     .tag.orange{background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);}
@@ -482,8 +482,8 @@
     .expand-icon{position:absolute;right:24px;top:24px;color:var(--text-muted);transition:transform .3s ease}
     .case-row.expanded .expand-icon{transform:rotate(180deg)}
 
-    .row-expanded{padding:0 24px 20px 80px;display:none;flex-direction:column;gap:16px;border-top:1px solid var(--border);margin-top:0;background:var(--surface)}
-    .case-row.expanded .row-expanded{display:flex;padding-top:16px}
+    .row-expanded{padding:0 20px 16px 76px;display:none;flex-direction:column;gap:12px;border-top:1px solid var(--border);margin-top:0;background:var(--surface)}
+    .case-row.expanded .row-expanded{display:flex;padding-top:12px}
     .case-row.expanded .row-main{background:var(--hover-bg)}
     .detail-text{font-size:13px;line-height:1.5}
 
@@ -1720,9 +1720,9 @@ window.onload = function() {
         else safe++;
       });
           document.getElementById('queueMeta').innerHTML =
-          '<span style="background:#FCE8E6;color:#C5221F;padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">warning</span>' + crit + ' critical</span>' +
+          '<span style="background:var(--md-sys-color-error-container);color:var(--md-sys-color-on-error-container);padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">warning</span>' + crit + ' critical</span>' +
           '<span style="background:#FEF7E0;color:#B06000;padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">schedule</span>' + warn + ' warning</span>' +
-          '<span style="background:#E6F4EA;color:#137333;padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">check_circle</span>' + safe + ' on track</span>';
+          '<span style="background:var(--md-sys-color-surface-container-highest);color:var(--md-sys-color-on-surface-variant);padding:4px 12px;border-radius:99px;font-weight:700;font-size:12px;display:flex;align-items:center;gap:4px"><span class="material-symbols-outlined" style="font-size:13px">check_circle</span>' + safe + ' on track</span>';
           document.getElementById('queueMeta').style.display = 'flex';
     }
 
@@ -1776,6 +1776,9 @@ window.onload = function() {
 
         if (isClaimed) {
           cardStyleClass = 'case-dimmed';
+          // Keep the SLA tag class logic but it will be visually dimmed anyway
+          if (wait.mins > 2880) { slaTagClass = 'sla-tag-critical'; }
+          else if (wait.mins > 1440) { slaTagClass = 'sla-tag-warn'; }
         } else {
           if (wait.mins > 2880) { cardStyleClass = 'case-outlined-critical'; slaTagClass = 'sla-tag-critical'; }
           else if (wait.mins > 1440) { cardStyleClass = 'case-outlined-warn'; slaTagClass = 'sla-tag-warn'; }
