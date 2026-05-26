@@ -178,20 +178,15 @@ function requireSME_() {
 
 function doGet(e) {
   _ensureSchema();
-  if (e && e.parameter && e.parameter.page === 'dashboard') {
-    return HtmlService.createTemplateFromFile('Dashboard')
-        .evaluate().setTitle('Escalations - Google Play')
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-  }
   if (e && e.parameter && e.parameter.page === 'schedule') {
     return HtmlService.createTemplateFromFile('Schedule')
         .evaluate().setTitle('Team Schedule - Google Play')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
-  return HtmlService.createTemplateFromFile('Index')
-      .evaluate().setTitle('Play Escalation Request')
+  // Default to Dashboard
+  return HtmlService.createTemplateFromFile('Dashboard')
+      .evaluate().setTitle('Escalations - Google Play')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
