@@ -1674,6 +1674,15 @@ window.onload = function() {
 
         return chanMatch && teamMatch && searchMatch && smeMatch && dateMatch;
       });
+      teamContainer.innerHTML = html;
+
+      // Update All Teams chip
+      document.getElementById('chip-all').classList.toggle('active', activeTeams.size === 0);
+
+      // Update Channel chips
+      document.getElementById('chip-chat').classList.toggle('active', activeChannels.has('Chat'));
+      document.getElementById('chip-email').classList.toggle('active', activeChannels.has('Email'));
+      document.getElementById('chip-phone').classList.toggle('active', activeChannels.has('Phone'));
     }
 
     function renderFilterChips() {
