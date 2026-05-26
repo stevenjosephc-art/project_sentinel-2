@@ -705,6 +705,74 @@
     }
 
     /* ─────────────────────────────────────────
+       M3 MODAL (DIALOG)
+    ───────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      display: none; align-items: center; justify-content: center;
+      z-index: 3000; opacity: 0; transition: opacity 0.3s;
+    }
+    .modal-overlay.open { display: flex; opacity: 1; }
+    .modal-container {
+      background: var(--md-sys-color-surface-container-high);
+      width: 100%; max-width: 800px; max-height: 90vh;
+      border-radius: 28px; overflow-y: auto;
+      box-shadow: var(--md-sys-color-shadow);
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .modal-header {
+      padding: 24px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--md-sys-color-outline-variant);
+      position: sticky; top: 0; background: var(--md-sys-color-surface-container-high); z-index: 2;
+    }
+    .modal-title { font-family: 'Google Sans'; font-size: 24px; color: var(--text-main); }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+    .modal-footer {
+      padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px;
+      border-top: 1px solid var(--md-sys-color-outline-variant);
+      position: sticky; bottom: 0; background: var(--md-sys-color-surface-container-high); z-index: 2;
+    }
+
+    /* Form specific styles */
+    .f-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .f-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    .f-group { display: flex; flex-direction: column; gap: 8px; position: relative; }
+    .f-label { font-size: 14px; font-weight: 500; color: var(--text-main); }
+    .f-input {
+      padding: 12px 16px; border-radius: 8px; border: 1px solid var(--md-sys-color-outline);
+      background: var(--md-sys-color-surface); color: var(--text-main); font-size: 14px;
+      outline: none; transition: border 0.2s;
+    }
+    .f-input:focus { border: 2px solid var(--md-sys-color-primary); padding: 11px 15px; }
+    .f-input.error { border-color: var(--md-sys-color-error); }
+    .f-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    .ac-list {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--md-sys-color-surface-container-highest);
+      border: 1px solid var(--md-sys-color-outline-variant);
+      border-radius: 4px; max-height: 200px; overflow-y: auto;
+      z-index: 10; display: none;
+    }
+    .ac-item { padding: 8px 16px; cursor: pointer; font-size: 14px; }
+    .ac-item:hover { background: var(--md-sys-color-surface-variant); }
+
+    /* FAB */
+    .fab {
+      position: fixed; bottom: 32px; right: 32px;
+      width: 56px; height: 56px; border-radius: 16px;
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-on-primary-container);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--card-shadow); cursor: pointer;
+      transition: all 0.2s; z-index: 1000;
+    }
+    .fab:hover { box-shadow: var(--card-shadow-hover); transform: scale(1.05); }
+    .fab .material-symbols-outlined { font-size: 24px; font-variation-settings: 'FILL' 1; }
+
+    /* ─────────────────────────────────────────
        PROFILE DRAWER
     ───────────────────────────────────────── */
     .drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1999;opacity:0;pointer-events:none;transition:.3s}
@@ -985,6 +1053,83 @@
   </div><!-- /main-wrapper -->
 
   <!-- ══════════════════════════════════
+       NEW ESCALATION MODAL
+  ══════════════════════════════════ -->
+  <div class="modal-overlay" id="escalationModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">New Escalation</div>
+        <button class="btn-icon" onclick="closeEscalationModal()"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="f-row three">
+          <div class="f-group">
+            <label class="f-label">LDAP *</label>
+            <input type="text" id="f-ldap" class="f-input" placeholder="Search LDAP..." autocomplete="off">
+            <div id="f-ldap-ac" class="ac-list"></div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Team *</label>
+            <select id="f-team" class="m3-select">
+              <option value="">Select Team...</option>
+              <option value="Team Steven">Team Steven</option>
+              <option value="Team Gerry">Team Gerry</option>
+              <option value="Team Khent">Team Khent</option>
+              <option value="Team James">Team James</option>
+              <option value="Team Denden">Team Denden</option>
+              <option value="Team Jim">Team Jim</option>
+              <option value="Team Al">Team Al</option>
+              <option value="Team Faye">Team Faye</option>
+              <option value="Team Mel">Team Mel</option>
+              <option value="Team Mary">Team Mary</option>
+            </select>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Channel *</label>
+            <select id="f-channel" class="m3-select">
+              <option value="">Select Channel...</option>
+              <option value="Chat">Chat</option>
+              <option value="Email">Email</option>
+              <option value="Phone">Phone</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="f-row">
+          <div class="f-group">
+            <label class="f-label">Case ID *</label>
+            <input type="text" id="f-caseid" class="f-input" placeholder="e.g. 4-9048000040554">
+            <div class="f-hint">Format: 1-13 digits</div>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Symptom *</label>
+            <input type="text" id="f-symptom" class="f-input" placeholder="Search symptom..." autocomplete="off">
+            <div id="f-symptom-ac" class="ac-list"></div>
+          </div>
+        </div>
+
+        <div class="f-group">
+          <label class="f-label">Detailed Customer Issue *</label>
+          <textarea id="f-issue" class="f-input" style="min-height:100px; resize:vertical;" placeholder="Describe the issue..."></textarea>
+        </div>
+
+        <div class="f-group">
+          <label class="f-label">Reason for Escalation *</label>
+          <textarea id="f-reason" class="f-input" style="min-height:100px; resize:vertical;" placeholder="Why escalate?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="nav-item" style="margin:0; background:none; border:none;" onclick="closeEscalationModal()">Cancel</button>
+        <button class="btn-primary" id="f-submit" onclick="submitNewEscalation()">Submit Escalation</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fab" id="newEscBtn" onclick="openEscalationModal()" title="New Escalation">
+    <span class="material-symbols-outlined">add</span>
+  </div>
+
+  <!-- ══════════════════════════════════
        TOASTS & DRAWERS
   ══════════════════════════════════ -->
   <div id="toast">Message</div>
@@ -1050,6 +1195,9 @@
 
     var SKELETON_HTML = '<div class="skeleton-row" style="background:var(--surface);border-radius:8px"><div class="skel-avatar skel-anim"></div><div style="flex:1"><div class="skel-block skel-anim" style="width:30%"></div><div class="skel-block skel-anim" style="width:70%"></div></div></div><div class="skeleton-row" style="background:var(--surface);border-radius:8px"><div class="skel-avatar skel-anim"></div><div style="flex:1"><div class="skel-block skel-anim" style="width:40%"></div><div class="skel-block skel-anim" style="width:60%"></div></div></div>';
     var EMPTY_SVG = '<span class="material-symbols-outlined" style="font-size:64px;color:var(--text-muted);opacity:.3">inbox</span><div style="margin-top:16px;font-weight:500">All clear! The queue is empty.</div>';
+
+    var LDAPS = ["randydavid","leodigariojr","amvalenzuela","patrickagustin","doradoj","johnpaulb","jpintucan","kestavillo","chonasevilla","crisjustine","isiahraven","camota","annearimiko","mikevincentr","dandreimarviel","aligarbes","ericaelaine","cyrilmark","alzona","nlontoc","ziaeline","mscruz","elaineaidamae","matala","marlynb","khrisjean","hazeljeang","miape","wilmarz","earlriamae","wellaangel","ecanillo","johndaleg","sabellano","mhae","finep","andypatrick","jaddymie","edelrose","donhael","tiffanygaile","kimberlymaet","inot","leaannr","mcamba","lizettemarie","annietolentino","deitherjay","meleazar","galido","delamide","jpalces","rtaguibalos","fortaliza","khristophers","karlpatrickb","garife","adpantoja","bbaradia","rufflorence","fritcy","edjievicente","dezhleronn","afinocencio","ccrevilla","markrobertt","maryroseperez","fwynn","krishaangelica","naomies","janineenriquez","gretelmarie","edar","aalcover","winajane","kimgemilo","vinceryan","charityg","ecuasion","charisseshyne","rotairo","jameskhyle","gelordave","fatimajoyce","msinag","bacabac","gencian","feliciano","asuzette","rmontanez","msylva","mariaelenar","clalugan","rbarce","ganiron","rmdelacruz","sfaderugao","ehllamae","catherinemagno","gilmerd","jhonpauli","marcangelob","npenaflor","jakemiealaiza","johncarlosf","maverickjohnb","bonagua","lornlyhn","fbasera","raco","jonnalynq","christenenina","apaap","carljhon","jsebua","maannjessica","francisnicole","cabilete","josiahjeir","welynjoy","guibone","jesclariel","aaantonio","planasj","armenionj","dhafney","ephraem","ramossheryn","nonas","jvcaballero","reymarkl","ocheaiii","jaimeem","aantigua","jhonmhel","ayamifaith","natashanina","jessamaer","owenjoseph","mtampus","glydennicole","ricoz","zenilyn","glendyloua","georgettemay","davejoe","athenaching","sheriebel","jbalugo","dexterroldan","racquelmorales","msfortes","rocoj","ygvillanueva","kylajulia","mariailaria","mhaila","rnavales","pompeia","gatapia","timajo","karenjoyb","annchristined","lesjhankaye","lovellejoy","johnlafrance","elmari","rienard","maanthonette","theresejoy","dianacarla","shundara","princemichael","noelperez","kennethwhesley","johnnoelp","kareenm","caranoo","vequezo","torreon","chilado","yguinto","refugio","anggam","leonoral","palomarj","cedricanthony","maekaila","krisangelo","nicoleflores","genlee","jecylangela","codeniera","jasminmariano","dmacalinao","johnkennedyr","arbasj","maicaangela","wcesario","mariakristinas","gandecila","sandraleea","emelinl","norphaina","jaimegabriel","mhelanthony","jechol","readoanarose","pilac","johroberts","sappholaramae","carloswendell","rodelon","albernardo","triciabel","johncarlolucio","irishjoyceg"].sort();
+    var SYMS = ["Book missing pages or sections Movie missing scenes","Download books Download movies & TV episodes","Rent a book Rent a movie or show","(Rewards) Cannot redeem rewards","[Consult] Failed Transaction","[Consult] Item not received","About accepted payment methods","About accessibility at Google","About accessibility for blind & low vision","About accessibility for Cognitive disabilities","About accessibility for Deaf and Hearing Impaired","About accessibility Mobility/Dexterity Impairment","About authorization holds","About auto-narrated audiobooks","About Chromecast with Google TV","About content release dates","About current events banners on store front","About Disability","About Disability outside of expertise","About Entertainment Space availability","About Entertainment Space functionality","About financing status","About Gift Card promotions","About Google disability partnership program","About Google One benefits","About Google Play Instant Apps","About Google TV app availability","About Keyboard shortcuts","About multiplayer capabilities","About other billing system","About physical vs digital content","About Play balance","About Play Points","About Play Protect","About renting content","About using Roku","About Wear OS","About your Google account","Abuse","Account or device limits reached","Account Recovery","Account sign-in & security","Account status issue","Account suspended","Accruing points issues","Add account","Add AliPayHK","Add Coins.ph","Add direct debit","Add money to Play","Add Octopus","Add PayMaya","Add payment method","Apps on Chromebook missing","Apps on Chromebook not downloading","Apps on Chromebook not working","Audiobook doesn't play","Book doesn't load","Book missing pages or sections","Books using too much device storage space","Bought by mistake","Buy movies","Buy with Play balance","Can't add Kid's School Account","Can't buy Play credit at store","Can't cancel subscription","Can't connect","Can't download apps","Can't find a book in Google Play Books store","Can't find a movie in Google Play Movies","Can't find an app","Can't find book in the Books App","Can't find content","Can't find content in the Newsstand app","Can't find game in the Games App","Can't find installed PC games","Can't find Play Store","Can't find subscription","Can't fully download an Google Play Instant App","Can't join or create a family","Can't load Google Play Instant Apps","Can't purchase Play content","Can't purchase Play content on iOS","Can't read offline","Can't redeem device promotion points","Can't redeem gift card","Can't redeem Google One benefit","Can't redeem promotion points","Can't search","Can't set up budget","Can't stream movie or show","Can't verify print subscription","Can't watch offline","Cancel a pre-order","Cancel adding cash to Play balance","Cancel subscription","Cant find a movie","Card or code lost/stolen","Change app permission","Change instant app settings","Change purchase approval settings","Change your nickname","Changing payment information","Changing profile address","Check Gift About Play balance","Check on payment status","Check payment code","Check Play balance","Check Play Points status","Check point balance","Check subscription details","Close a profile","Complete My Season not working","Contacts issues","Content changed after purchase","Content defective","Content doesn't match description","Content failed to load/play","Content not downloaded","Content won't load","Copyright or trademark infringement","Customize Shelves","Defective apps or in-app purchases","Defective games","Defective hardware","Delete a family group","Delete a Play Games Profile","Delete game data for a specific game","Device freezes on startup (stuck on boot)","Device requirements","Didn't receive points from promotion","Difference between renting and buying","Don't want a purchase","Donate Play balance","Donation question","Download books","Download movies & TV episodes","Duplicate content in library","eBook scanned pages and flowing text","Edit a Play Games Profile","Editing or removing a payment method","Enable WiFi only downloads","Entertainment Space platform issue","Error message","Failed Transaction","Family or friend made purchase","Feature Request for Game Center","Find purchase details","Find recently used Google Play Instant apps","First time setup","Fix problems with Tools for Beginners","Game achievement issue","Game is missing","Game not available","Game progress not syncing","Game progress not syncing across devices","Games using too much device storage space","Games, Books, or Movies crashing after download","Games, Books, or Movies won't load after purchase and download","General issues with comic destination","General issues with sports experience","General personal data / privacy query","General Play technical issue","General questions","Gift card already redeemed","Gift card code damaged","Gift card code mistyped","Gift card not activated","Gift card refund","Gift card scam","Google app developer issue","Google Play Books crashes or won't load","Google Play Books missing from device","Google Play crashes or won't load","Google Play Games missing from device","Google Play Movies & TV crashes or won't load","Google Play Movies & TV missing from device","Google Play Newsstand crashes or won't load","Google Workspace account access","HD not supported on device","HD quality issue","How to access Google TV content","How to cast content","How to change System settings","How to check eligibility","How to check my Play Points","How to create new account","How to customize display","How to download and use Chrome player extensions","How to enable captions","How to find content in the Play Store","How to hide or archive content","How to pre-order","How to redeem a gift card","How to redeem Play Points benefits","How to reset recommendations","How to use a Google Play Instant App","How to use accessibility features","How to use audio description","How to use Customize","How to use Google Play web player or website","How to use TalkBack","How to watch on a TV","Identity verification process","Inaccurate content shown","Inactive membership","Incorrect content mapping","Ineligible to join any League","Installation issue","Issue after redeeming points","Issue downloading for offline use","Issue recording or sharing video","Issue with app or game developer","Issue with app syncing","Issue with audiobook","Issue with book syncing","Issue with Chromebook apps","Issue with content provider","Issue with downloaded book","Issue with downloaded game","Issue with game syncing","Issue with gift card country","Issue with Google Play League","Issue with Google Play Streak","Issue with instant app","Issue with Play balance","Issue with Play Games Free Trial","Issue with Play Games Profile","Issue with Play Games Sidekick","Issue with Play Pass","Issue with Play Points Status","Issue with points from promotion","Issue with read aloud","Issue with sale","Issue with season pass","Issue with subtitles or captions","Issue with Underage Payments Profile","Issues with audio","Issues with content quality","Issues with Live streaming to Youtube in Play Games app","Issues with My Videos feature in Play Games app","Issues with Players feature in Play Games app","Issues with points of Play Points program","Issues with recording videos in Play Games app","Item doesn't work","Item not delivered","Japan Specified Commercial Transactions","Kid is not able to redeem/use a Gift Card","Learn about Pixel Pass","Leave a League","Legal & Privacy","Link goes to different content","Listen to audiobooks","Manage a family group","Manage budget setting","Manage child's Google Play gift cards","Manage device storage","Manage family payment method","Manage multiple accounts","Manage Play Games progress","Manage your wishlist","Missing audiobook PDF","Modify Google Workspace MX records","Movie missing scenes","Movie or show missing from library","Movie or TV show won't play","Movie won't play from specific service provider","Movies & TV app not on Smart TVs or Roku","Play Points enrollment","Play Points error message","Play Points issue","Play Store connection issue","Play Store on Chromebook not loading","Play Store won't start","Play third party developer issue","Playback issues","Poor recommendations","Preorder issues","Preorder not delivered on time","Previously available apps missing","Previously available books missing","Previously available games missing","Pricing information","Print a book","Privacy and data","Problems with game performance","Problems with in-game purchases","Profile security","Profile status request","Promo code not working","Promo code wasn't delivered","Purchase not complete","Purchasing issues with points","Questions about compliance/regulations","Questions about Play Points device promotion","Questions about Play Points promotion","Questions about teacher approved badge","Ratings or reviews disappearing or removed","Reached device limit","Reached Play balance limit","Received wrong order","Refund individual book in bundles","Refund or transfer request","Refund policy & process","Refund request denied","Refund status","Remove account","Remove AliPayHK","Remove Coins.ph","Remove content from library","Remove direct debit","Remove Octopus","Remove PayMaya","Removed from a particular League","Rent a book","Rent a movie or show","Report incorrect content ratings","Report unknown data transfer request","Request for transaction status","Resend Gift Card","Results / rankings","Retailer did not give code","Save content to SD card","See devices using Play account","Self unenrollment","Sell your book on Play","Send Google Play your suggestions","Send review request to the team","Set up budget","Set up parental controls","Setup issues with downloaded apps","Sort book library","Spam or pop-up issues","Start a subscription","Switch accounts","Tax questions","There is no link to click on","Title not available","Transaction history","Transaction status of cash top-up","Transfer account content","Transfer Play Balance","Transfer promotion points","Turn Google Play Instant Apps on or off","Unable to share content in Family Library","Unauthorized charge","Unenroll from Play Points","Uninstall an app","Unrecognized charge","Update apps","Update payment method","Upgrade from movie rental to purchase (Refund)","Upgrade from TV show to Season Pass (Refund)","Upload personal book","Use Kid Dictionary","Use Play Books with Google Classroom","Use Play Points","Use Read and Listen","Use Skim View","Use Tap to Read","Using Family Library","Verify Payment Method","Verify your identity","View purchases","Watch from streaming apps","Watch on a TV","What is COVID-19 tracing","What is Premium Support","Where can I find the public health authority apps","Why does Exposure Notification setting pop up","Write a review","Wrong country or currency","Wrong sale price"];
 
     /* -------------------------------------------
    INIT
@@ -2255,6 +2403,119 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
     /* ─────────────────────────────────────────
        PROFILE DRAWER
     ───────────────────────────────────────── */
+    /* ─────────────────────────────────────────
+       ESCALATION FORM LOGIC
+    ───────────────────────────────────────── */
+    function openEscalationModal() {
+      document.getElementById('escalationModal').classList.add('open');
+      if (!document.getElementById('f-ldap').value) {
+        document.getElementById('f-ldap').value = currentUserLdap;
+      }
+    }
+
+    function closeEscalationModal() {
+      document.getElementById('escalationModal').classList.remove('open');
+      resetEscalationForm();
+    }
+
+    function resetEscalationForm() {
+      ['f-ldap','f-team','f-channel','f-caseid','f-symptom','f-issue','f-reason'].forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) {
+          el.value = '';
+          el.classList.remove('error');
+        }
+      });
+      document.getElementById('f-submit').disabled = false;
+      document.getElementById('f-submit').textContent = 'Submit Escalation';
+    }
+
+    function setupFAutocomplete(inputId, listId, data) {
+      var inp = document.getElementById(inputId);
+      var list = document.getElementById(listId);
+      if (!inp || !list) return;
+
+      function render(items) {
+        list.innerHTML = '';
+        if (!items.length) { list.style.display = 'none'; return; }
+        items.slice(0, 10).forEach(function(item) {
+          var d = document.createElement('div');
+          d.className = 'ac-item';
+          d.textContent = item;
+          d.onclick = function() {
+            inp.value = item;
+            list.style.display = 'none';
+            inp.classList.remove('error');
+          };
+          list.appendChild(d);
+        });
+        list.style.display = 'block';
+      }
+
+      inp.oninput = function() {
+        var q = inp.value.toLowerCase().trim();
+        render(q ? data.filter(function(x){ return x.toLowerCase().includes(q); }) : []);
+      };
+
+      document.addEventListener('click', function(e) {
+        if (!inp.contains(e.target) && !list.contains(e.target)) list.style.display = 'none';
+      });
+    }
+
+    function submitNewEscalation() {
+      var fields = ['f-ldap','f-team','f-channel','f-caseid','f-symptom','f-issue','f-reason'];
+      var ok = true;
+      var payload = {};
+
+      fields.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (!el.value.trim()) {
+          el.classList.add('error');
+          ok = false;
+        } else {
+          el.classList.remove('error');
+          payload[id.replace('f-','')] = el.value.trim();
+        }
+      });
+
+      if (!/^\d-\d{13}$/.test(payload.caseid || '')) {
+        document.getElementById('f-caseid').classList.add('error');
+        showToast('Invalid Case ID format (1-13 digits)');
+        ok = false;
+      }
+
+      if (!ok) return;
+
+      var btn = document.getElementById('f-submit');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) {
+            showToast('✅ Escalation submitted successfully!');
+            closeEscalationModal();
+            fetchActiveQueue();
+          } else {
+            showToast('❌ ' + res.message);
+            btn.disabled = false;
+            btn.textContent = 'Submit Escalation';
+          }
+        })
+        .withFailureHandler(function(err) {
+          showToast('❌ Server error: ' + err);
+          btn.disabled = false;
+          btn.textContent = 'Submit Escalation';
+        })
+        .submitEscalation(payload);
+    }
+
+    // Initialize Autocomplete
+    window.addEventListener('DOMContentLoaded', function() {
+      setupFAutocomplete('f-ldap', 'f-ldap-ac', LDAPS);
+      setupFAutocomplete('f-symptom', 'f-symptom-ac', SYMS);
+    });
+
     function updateProfileDrawer() {
       if (!currentUserEmail) return;
       document.getElementById('pdName').textContent  = currentUserLdap;
