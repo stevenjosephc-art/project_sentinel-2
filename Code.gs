@@ -216,7 +216,7 @@ function submitEscalation(formData) {
       sheet.setFrozenRows(1);
     }
 
-    if (!/^\d-\d{13}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
+    if (!/^\d-\d{12}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
 
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
