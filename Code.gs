@@ -216,7 +216,7 @@ function submitEscalation(formData) {
       sheet.setFrozenRows(1);
     }
 
-    if (!/^\d-\d{13}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
+    if (!/^\d-\d{12,13}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
 
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
@@ -252,6 +252,26 @@ _log('SUBMIT', submitterEmail, 'Case submitted', -1, formData.caseId, formData.l
    READ FUNCTIONS (Upgraded for Enterprise Speed & Caching)
    ═══════════════════════════════════════════════════════════════════ */
 
+/**
+ * Pings a case to indicate active viewing (SME Collision Detection).
+ */
+function pingCase(caseId) {
+  const email = Session.getActiveUser().getEmail();
+  if (!isUserSME_(email)) return;
+  const ldap = email.split('@')[0].toLowerCase();
+
+  const cache = CacheService.getScriptCache();
+  const key = 'viewers_' + caseId;
+  let viewers = JSON.parse(cache.get(key) || '[]');
+
+  // Remove expired (older than 2 mins) or duplicate
+  const now = Date.now();
+  viewers = viewers.filter(v => v.ldap !== ldap && (now - v.ts) < 120000);
+  viewers.push({ ldap: ldap, ts: now });
+
+  cache.put(key, JSON.stringify(viewers), 125); // Cache for slightly more than 2 mins
+}
+
 function getOpenCases() {
   _checkRateLimit('getOpenCases');
   const ss = SpreadsheetApp.openById(MASTER_DB_ID);
@@ -277,8 +297,15 @@ function getOpenCases() {
     const isMine    = (handledBy.toLowerCase() === myEmail) ||
                       (claimLdap === myLdap && claimLdap !== '');
 
+    const viewers = JSON.parse(CacheService.getScriptCache().get('viewers_' + row[3]) || '[]');
+    const now = Date.now();
+    const activeViewers = viewers
+      .filter(v => (now - v.ts) < 120000 && v.ldap !== myLdap)
+      .map(v => v.ldap);
+
     openCases.push({
       rowIdx        : index + 3,
+      viewers       : activeViewers,
       timestamp     : row[0]  ? new Date(row[0]).toString()  : '',
       submitter     : String(row[1]  || ''),
       ldap          : String(row[2]  || ''),
@@ -669,7 +696,6 @@ function claimCase(rowIdx) {
 
     sheet.getRange(rowIdx, 16).setValue(claimedAt); // col 16 (P) = Claimed At
     sheet.getRange(rowIdx, 14).setValue(smeEmail);  // <-- PUT THIS BACK HERE
-    _log('CLAIM', smeEmail, 'Case claimed', rowIdx, caseData.caseId, caseData.ldap);
 
     const row = sheet.getRange(rowIdx, 1, 1, 16).getValues()[0];
     const caseData = {
@@ -684,6 +710,8 @@ function claimCase(rowIdx) {
       caseLink     : String(row[9] || ''),
       timestamp    : row[0] ? new Date(row[0]).toString() : ''
     };
+
+    _log('CLAIM', smeEmail, 'Case claimed', rowIdx, caseData.caseId, caseData.ldap);
 
     sendClaimNotification_(caseData, smeEmail);
 
