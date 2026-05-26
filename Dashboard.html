@@ -1098,7 +1098,7 @@
         <div class="f-row">
           <div class="f-group">
             <label class="f-label">Case ID *</label>
-            <input type="text" id="f-caseid" class="f-input" placeholder="e.g. 4-9048000040554">
+            <input type="text" id="f-caseId" class="f-input" placeholder="e.g. 4-9048000040554">
             <div class="f-hint">Format: 1-13 digits</div>
           </div>
           <div class="f-group">
@@ -1110,7 +1110,7 @@
 
         <div class="f-group">
           <label class="f-label">Detailed Customer Issue *</label>
-          <textarea id="f-issue" class="f-input" style="min-height:100px; resize:vertical;" placeholder="Describe the issue..."></textarea>
+          <textarea id="f-detailedIssue" class="f-input" style="min-height:100px; resize:vertical;" placeholder="Describe the issue..."></textarea>
         </div>
 
         <div class="f-group">
@@ -1180,6 +1180,17 @@
     var undoPending      = null;
     var undoTimer        = null;
     var slaTickTimer     = null;
+
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     var TEAM_COLORS = {
   'Team Steven': 'background:#E8F0FE;color:#1967D2',
   'Team Gerry':  'background:#FCE8E6;color:#C5221F',
@@ -1239,17 +1250,19 @@ window.onload = function() {
     function applyRoleUI() {
       var badge = document.getElementById('roleBadge');
       badge.style.display = 'inline-flex';
+      var metricsNav = document.querySelector('[data-tab="metrics"]');
       if (isSME) {
         badge.className = 'role-badge sme';
         badge.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px">verified_user</span> SME / Supervisor';
         document.getElementById('readonlyBanner').classList.remove('visible');
         var sac = document.getElementById('selectAllCheck');
         if (sac) sac.style.display = 'inline-block';
+        if (metricsNav) metricsNav.style.display = 'flex';
       } else {
         badge.className = 'role-badge agent';
         badge.innerHTML = '<span class="material-symbols-outlined" style="font-size:13px">person</span> Agent (View Only)';
         document.getElementById('readonlyBanner').classList.add('visible');
-        document.getElementById('bulkClaimBar').style.display = 'none';
+        if (metricsNav) metricsNav.style.display = 'none';
       }
     }
 
@@ -1266,14 +1279,16 @@ window.onload = function() {
 
     function getMomaImg(ldap, size) {
       size = size || 100;
-      var p = 'https://moma-teams-photos.corp.google.com/photos/' + ldap + '?sz=' + size;
+      var sLdap = escAttr(ldap);
+      var p = 'https://moma-teams-photos.corp.google.com/photos/' + sLdap + '?sz=' + size;
       var f = p + '&type=SECURITY&type=SILHOUETTE';
       return '<img src="' + p + '" class="row-avatar" onerror="this.onerror=null;this.src=\'' + f + '\';">';
     }
 
     function getMomaImgClass(ldap, cls, size) {
       size = size || 100;
-      var p = 'https://moma-teams-photos.corp.google.com/photos/' + ldap + '?sz=' + size;
+      var sLdap = escAttr(ldap);
+      var p = 'https://moma-teams-photos.corp.google.com/photos/' + sLdap + '?sz=' + size;
       var f = p + '&type=SECURITY&type=SILHOUETTE';
       return '<img src="' + p + '" class="' + cls + '" onerror="this.onerror=null;this.src=\'' + f + '\';">';
     }
@@ -1638,7 +1653,7 @@ window.onload = function() {
         if (c.channel === 'Email') channelIcon = 'mail';
         if (c.channel === 'Phone') channelIcon = 'call';
 
-        var richIssue     = String(c.detailedIssue || '').replace(/\n/g,'<br>');
+        var richIssue     = esc(c.detailedIssue).replace(/\n/g,'<br>');
         var rowIdx        = c.rowIdx;
         var actionHTML    = '';
         var bulkCheckHTML = '';
@@ -1682,25 +1697,32 @@ window.onload = function() {
           actionHTML = '<div class="tag orange" style="padding:12px; margin-top:16px;"><span class="material-symbols-outlined">lock</span> In Progress by ' + claimLdap + '</div>';
         }
 
+        var safeLdap = esc(c.ldap);
+        var safeSym  = esc(c.symptom);
+        var safeReason = esc(c.reason);
+        var shortReason = safeReason.length > 100 ? safeReason.substring(0, 100) + '…' : safeReason;
+        var safeTeam = esc(c.team);
+        var safeCaseId = esc(c.caseId);
+
         html += '<div class="case-row ' + cardStyleClass + '" id="card-' + rowIdx + '" data-rowidx="' + rowIdx + '">' +
           '<div class="row-main" onclick="toggleCard(this)">' +
             bulkCheckHTML +
             getMomaImgClass(c.ldap, 'row-avatar', 48) +
             '<div class="row-content">' +
               '<div style="display:flex; align-items:center; gap:8px;">' +
-                '<div class="row-title" style="font-size:16px;">' + c.symptom + '</div>' +
+                '<div class="row-title" style="font-size:16px;">' + safeSym + '</div>' +
                 '<span class="material-symbols-outlined" style="font-size:18px; color:var(--md-sys-color-on-surface-variant)">' + channelIcon + '</span>' +
               '</div>' +
-              '<div class="row-sub" style="font-size:13px; margin:4px 0 8px;">' + c.ldap + ' &bull; ' + ((c.reason||'').length > 100 ? c.reason.substring(0,100)+'…' : (c.reason||'')) + '</div>' +
+              '<div class="row-sub" style="font-size:13px; margin:4px 0 8px;">' + safeLdap + ' &bull; ' + shortReason + '</div>' +
               '<div class="row-tags">' +
                 '<span class="tag ' + slaTagClass + '" data-sla-ts="' + (c.timestamp || '') + '"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span>Waiting: ' + wait.str + '</span>' +
-                '<span class="tag tag-neutral" style="background:' + (TEAM_COLORS[c.team] ? 'rgba(0,0,0,0.05)' : '') + '">' + c.team + '</span>' +
+                '<span class="tag tag-neutral" style="background:' + (TEAM_COLORS[c.team] ? 'rgba(0,0,0,0.05)' : '') + '">' + safeTeam + '</span>' +
                 callbackBadge +
-                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + claimLdap + '</span>' : '') +
+                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(claimLdap) + '</span>' : '') +
                 (isMine ? '<span class="tag" style="background:var(--md-sys-color-primary); color:white;"><span class="material-symbols-outlined" style="font-size:14px;">person</span> Assigned to you</span>' : '') +
               '</div>' +
             '</div>' +
-            '<div class="row-meta"><a href="https://cases.connect.corp.google.com/' + c.caseId + '" target="_blank" class="case-link" style="font-size:14px; font-weight:700;" onclick="event.stopPropagation()">' + c.caseId + '</a></div>' +
+            '<div class="row-meta"><a href="https://cases.connect.corp.google.com/' + safeCaseId + '" target="_blank" class="case-link" style="font-size:14px; font-weight:700;" onclick="event.stopPropagation()">' + safeCaseId + '</a></div>' +
             '<span class="material-symbols-outlined expand-icon" style="margin-left:16px;">expand_more</span>' +
           '</div>' +
           '<div class="row-expanded" style="padding: 0 24px 24px 92px; border-top: none;">' +
@@ -1955,10 +1977,16 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
       var html = '';
       visibleCases.forEach(function(c) {
         var d = new Date(c.resolutionTime);
-        var safeCaseId  = escAttr(c.caseId);
-        var safeLdap    = escAttr(c.ldap);
-        var safeSym     = escAttr(c.symptom);
-        var safeRemarks = escAttr(c.remarks);
+        var attrCaseId  = escAttr(c.caseId);
+        var attrLdap    = escAttr(c.ldap);
+        var attrSym     = escAttr(c.symptom);
+        var attrRemarks = escAttr(c.remarks);
+
+        var safeCaseId = esc(c.caseId);
+        var safeLdap   = esc(c.ldap);
+        var safeSym    = esc(c.symptom);
+        var safeTeam   = esc(c.team);
+        var safeHandledBy = esc(c.handledBy ? c.handledBy.split('@')[0] : '--');
 
         var channelIcon = '';
         if (c.channel === 'Chat')  channelIcon = 'chat';
@@ -1981,11 +2009,11 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
             getMomaImgClass(c.ldap, 'row-avatar', 48) +
             '<div class="row-content">' +
               '<div style="display:flex; align-items:center; gap:8px;">' +
-                '<div class="row-title" style="font-size:16px;">' + c.symptom + '</div>' +
+                '<div class="row-title" style="font-size:16px;">' + safeSym + '</div>' +
                 '<span class="material-symbols-outlined" style="font-size:18px; color:var(--md-sys-color-on-surface-variant)">' + channelIcon + '</span>' +
               '</div>' +
               '<div class="row-sub" style="font-size:13px; margin:4px 0 8px;">' +
-                'Handled by: <strong>' + (c.handledBy ? c.handledBy.split('@')[0] : '--') + '</strong> &bull; ' +
+                'Handled by: <strong>' + safeHandledBy + '</strong> &bull; ' +
                 (isNaN(d.getTime()) ? '--' : d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'})) +
               '</div>' +
               '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">' + driverHtml + '</div>' +
@@ -1993,21 +2021,21 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
                 '<span class="tag" style="background:#e6f4ea; color:#137333; font-weight:700;">' +
                   '<span class="material-symbols-outlined" style="font-size:14px; margin-right:4px">check_circle</span>Resolved' +
                 '</span>' +
-                '<span class="tag tag-neutral">' + c.channel + '</span>' +
-                '<span class="tag tag-neutral" style="opacity:0.8">' + c.team + '</span>' +
+                '<span class="tag tag-neutral">' + esc(c.channel) + '</span>' +
+                '<span class="tag tag-neutral" style="opacity:0.8">' + safeTeam + '</span>' +
               '</div>' +
             '</div>' +
             '<div class="row-meta">' +
-              '<a href="https://cases.connect.corp.google.com/' + c.caseId + '" target="_blank" class="case-link" style="font-size:14px; font-weight:700;" onclick="event.stopPropagation()">' + c.caseId + '</a>' +
+              '<a href="https://cases.connect.corp.google.com/' + safeCaseId + '" target="_blank" class="case-link" style="font-size:14px; font-weight:700;" onclick="event.stopPropagation()">' + safeCaseId + '</a>' +
               '<div style="font-size:11px; color:var(--text-muted); margin-top:4px;">' + safeLdap + '</div>' +
             '</div>' +
             '<span class="material-symbols-outlined expand-icon" style="margin-left:16px;">expand_more</span>' +
           '</div>' +
           '<div class="row-expanded" style="padding: 0 24px 24px 92px; border-top:none;">' +
             '<div class="detail-text" style="font-size:14px; line-height:1.6; background:var(--md-sys-color-surface-container); padding:16px; border-radius:12px;">' +
-              '<strong style="color:#1a7f37">SME Resolution Remarks:</strong><br>' + String(c.remarks || '').replace(/\n/g,'<br>') +
+              '<strong style="color:#1a7f37">SME Resolution Remarks:</strong><br>' + esc(c.remarks).replace(/\n/g,'<br>') +
             '</div>' +
-            '<div style="margin-top:16px"><button class="btn-copy" style="border-radius:20px; padding:8px 24px;" onclick="copyToCRM(\'' + safeCaseId + '\',\'' + safeLdap + '\',\'' + safeSym + '\',\'' + safeRemarks + '\')">' +
+            '<div style="margin-top:16px"><button class="btn-copy" style="border-radius:20px; padding:8px 24px;" onclick="copyToCRM(\'' + attrCaseId + '\',\'' + attrLdap + '\',\'' + attrSym + '\',\'' + attrRemarks + '\')">' +
               '<span class="material-symbols-outlined" style="font-size:18px">content_copy</span> Copy Formatted Notes</button></div>' +
           '</div>' +
         '</div>';
@@ -2145,16 +2173,17 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
                        day.status === 'vl'  ? 'VL'      :
                        day.status === 'off' ? 'OFF'     : '—';
 
-      var p = 'https://moma-teams-photos.corp.google.com/photos/' + person.ldap + '?sz=72';
+      var sLdap = escAttr(person.ldap);
+      var p = 'https://moma-teams-photos.corp.google.com/photos/' + sLdap + '?sz=72';
       var f = p + '&type=SECURITY&type=SILHOUETTE';
 
       return '<div class="schedule-person-row">' +
         '<img src="' + p + '" class="schedule-person-avatar" onerror="this.onerror=null;this.src=\'' + f + '\'">' +
         '<div class="schedule-person-info">' +
-          '<div class="schedule-person-name">' + person.ldap + '</div>' +
-          '<div class="schedule-person-role">' + (person.role || 'SME') + '</div>' +
+          '<div class="schedule-person-name">' + esc(person.ldap) + '</div>' +
+          '<div class="schedule-person-role">' + esc(person.role || 'SME') + '</div>' +
         '</div>' +
-        '<span class="schedule-shift-badge ' + badgeCls + '">' + badgeLabel + '</span>' +
+        '<span class="schedule-shift-badge ' + badgeCls + '">' + esc(badgeLabel) + '</span>' +
       '</div>';
     }
 
@@ -2208,8 +2237,9 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
         var pppPct = ag.total>0 ? Math.round((ag.ppp/ag.total)*100) : 0;
         var cbPct  = ag.total>0 ? Math.round((ag.callback/ag.total)*100) : 0;
         var isHot  = ag.total>=5 && pppPct>=50;
+        var sLdap  = esc(ag.ldap);
         html += '<tr>' +
-          '<td><div style="display:flex;align-items:center;gap:12px;font-weight:500">' + getMomaImg(ag.ldap) + ag.ldap + '</div></td>' +
+          '<td><div style="display:flex;align-items:center;gap:12px;font-weight:500">' + getMomaImg(ag.ldap) + sLdap + '</div></td>' +
           '<td style="font-weight:700">' + (isHot ? '<span class="heat-red">' + ag.total + '</span>' : ag.total) + '</td>' +
           '<td>' + cbPct + '%</td>' +
           '<td>' + (isHot ? '<span class="heat-red">' + pppPct + '%</span>' : pppPct + '%') + '</td>' +
@@ -2463,7 +2493,7 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
     }
 
     function submitNewEscalation() {
-      var fields = ['f-ldap','f-team','f-channel','f-caseid','f-symptom','f-issue','f-reason'];
+      var fields = ['f-ldap','f-team','f-channel','f-caseId','f-symptom','f-detailedIssue','f-reason'];
       var ok = true;
       var payload = {};
 
@@ -2478,8 +2508,8 @@ document.getElementById('resTypeMetricsBody').innerHTML = resTypeHtml ||
         }
       });
 
-      if (!/^\d-\d{13}$/.test(payload.caseid || '')) {
-        document.getElementById('f-caseid').classList.add('error');
+      if (!/^\d-\d{13}$/.test(payload.caseId || '')) {
+        document.getElementById('f-caseId').classList.add('error');
         showToast('Invalid Case ID format (1-13 digits)');
         ok = false;
       }
