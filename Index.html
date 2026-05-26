@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <style>
+    :root {
+      --blue:         #1A73E8;
+      --blue-dk:      #1256b8;
+      --blue-lt:      #E8F0FE;
+      --green:        #34A853;
+      --green-lt:     #E6F4EA;
+      --green-dk:     #1e7e34;
+      --amber:        #F9AB00;
+      --red:          #EA4335;
+      --red-lt:       #FCE8E6;
+      --surface:      #ffffff;
+      --surface-2:    #F8FAFF;
+      --border:       #DDE3F0;
+      --text-main:    #1C1E2E;
+      --text-sub:     #4A5068;
+      --text-muted:   #8A91AA;
+      --inp-bg:       #F5F7FF;
+      --radius:       20px;
+      --radius-sm:    10px;
+      --shadow-drop:  0 12px 40px rgba(26,115,232,0.18), 0 2px 8px rgba(0,0,0,0.08);
+      --transition:   all 0.18s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { height: 100%; }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: #0C1830;
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 36px 20px;
+      position: relative;
+      overflow-x: hidden;
+      color: var(--text-main);
+    }
+
+    /* ── BACKGROUND ── */
+    .bg {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    .bg::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 1000px 700px at 10% 15%, rgba(26,115,232,0.25) 0%, transparent 60%),
+        radial-gradient(ellipse 700px 600px at 90% 80%, rgba(52,168,83,0.13) 0%, transparent 55%),
+        radial-gradient(ellipse 500px 400px at 75% 5%,  rgba(66,133,244,0.10) 0%, transparent 50%);
+    }
+    .bg-dots {
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px);
+      background-size: 36px 36px;
+    }
+    .bg-orb {
+      position: absolute; border-radius: 50%; filter: blur(70px);
+      animation: float 9s ease-in-out infinite;
+    }
+    .bg-orb-1 { width:550px;height:550px; background:rgba(26,115,232,0.16); top:-150px; left:-120px; animation-delay:0s; }
+    .bg-orb-2 { width:420px;height:420px; background:rgba(52,168,83,0.09);  bottom:-100px; right:-80px; animation-delay:3.5s; }
+    .bg-orb-3 { width:320px;height:320px; background:rgba(249,171,0,0.07);  top:45%; right:8%; animation-delay:6s; }
+    @keyframes float {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%      { transform: translateY(-28px) scale(1.04); }
+    }
+
+    /* ── TOP META BAR ── */
+    .meta-bar {
+      position: relative; z-index: 2;
+      width: 100%; max-width: 920px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px; padding: 0 2px;
+    }
+    .meta-brand {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11.5px; color: rgba(255,255,255,0.4);
+      font-family: 'Google Sans', sans-serif; letter-spacing: 0.4px;
+    }
+    .meta-brand::before {
+      content: ''; width: 7px; height: 7px;
+      border-radius: 50%; background: rgba(255,255,255,0.22); flex-shrink: 0;
+    }
+    .meta-right {
+      font-size: 11px; color: rgba(255,255,255,0.28);
+      font-family: 'Google Sans', sans-serif;
+    }
+
+    /* ── CARD ── */
+    .card {
+      position: relative; z-index: 2;
+      width: 100%; max-width: 920px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.45), 0 8px 30px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    /* ── CARD HEADER ── */
+    .card-hdr {
+      background: linear-gradient(135deg, #1257B8 0%, #1A73E8 50%, #2196F3 100%);
+      padding: 26px 36px 22px;
+      position: relative; overflow: hidden;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 20px;
+    }
+    .card-hdr::before {
+      content: ''; position: absolute;
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 65%);
+      top: -200px; right: -60px; pointer-events: none;
+    }
+    .hdr-left {
+      display: flex; align-items: center;
+      gap: 16px; position: relative; z-index: 2;
+    }
+    .hdr-logo {
+      width: 50px; height: 50px; flex-shrink: 0;
+      background: white; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.15);
+    }
+    .hdr-logo img { width: 30px; height: 30px; object-fit: contain; }
+    .hdr-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 21px; font-weight: 700;
+      color: white; letter-spacing: -0.2px; line-height: 1.2;
+    }
+    .hdr-sub {
+      font-size: 12px; color: rgba(255,255,255,0.7);
+      margin-top: 2px;
+    }
+    .hdr-right {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    }
+    .pill-user {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 13px; border-radius: 99px;
+      font-size: 12px; font-weight: 500;
+      font-family: 'Google Sans', sans-serif;
+      background: rgba(0,0,0,0.2); color: white;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .pill-user .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #4AE880;
+      box-shadow: 0 0 6px rgba(74,232,128,0.7); flex-shrink: 0;
+    }
+
+    /* ── FORM BODY ── */
+    .card-body { padding: 30px 36px 26px; display: flex; flex-direction: column; gap: 26px; }
+
+    /* ── SECTION ── */
+    .section-head {
+      display: flex; align-items: center; gap: 9px;
+      margin-bottom: 16px; padding-bottom: 11px;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .section-icon {
+      width: 27px; height: 27px; border-radius: 7px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .si-blue  { background: var(--blue-lt); color: var(--blue); }
+    .si-green { background: var(--green-lt); color: var(--green); }
+    .si-amber { background: #FEF3DC; color: #9A6800; }
+    .section-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 1.2px; text-transform: uppercase;
+    }
+    .st-blue  { color: var(--blue); }
+    .st-green { color: var(--green); }
+    .st-amber { color: #9A6800; }
+
+    /* ── GRID ROWS ── */
+    .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── FORM FIELDS ── */
+    .fg { display: flex; flex-direction: column; }
+    .flabel {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 11.5px; font-weight: 600;
+      color: var(--text-sub); margin-bottom: 7px;
+    }
+    .flabel .req { color: var(--red); }
+    .fhint {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-muted); margin-top: 5px;
+    }
+    .fhint .count { font-weight: 600; color: var(--text-sub); }
+
+    /* Input base */
+    .inp {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Roboto', sans-serif; font-size: 13.5px;
+      color: var(--text-main); background: var(--inp-bg);
+      outline: none; transition: var(--transition);
+      -webkit-appearance: none;
+    }
+    .inp::placeholder { color: var(--text-muted); }
+    .inp:focus {
+      border-color: var(--blue); background: white;
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.11);
+    }
+    .inp.is-valid {
+      border-color: var(--green); background: white;
+      box-shadow: 0 0 0 3px rgba(52,168,83,0.09);
+    }
+    .inp.is-error {
+      border-color: var(--red); background: var(--red-lt);
+    }
+    textarea.inp {
+      resize: vertical; min-height: 108px; line-height: 1.6;
+    }
+
+    /* ── AUTOCOMPLETE ── */
+    .ac-wrap { position: relative; }
+    .ac-arrow {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none; color: var(--text-muted); display: flex;
+    }
+    .ac-list {
+      position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+      background: white; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      max-height: 220px; overflow-y: auto;
+      z-index: 9999; box-shadow: var(--shadow-drop);
+      display: none; padding: 4px 0;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .ac-list::-webkit-scrollbar { width: 5px; }
+    .ac-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .ac-item {
+      padding: 9px 14px; font-size: 13px; color: var(--text-main);
+      cursor: pointer; transition: var(--transition); line-height: 1.4;
+    }
+    .ac-item:hover { background: var(--blue-lt); color: var(--blue); }
+    .ac-item.no-match { color: var(--text-muted); font-style: italic; cursor: default; }
+    .ac-item.no-match:hover { background: none; color: var(--text-muted); }
+
+    /* ── CUSTOM SELECT ── */
+    .sel-wrap { position: relative; }
+    .sel-trigger {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--inp-bg); display: flex; align-items: center;
+      gap: 9px; cursor: pointer; transition: var(--transition);
+      user-select: none; min-height: 42px;
+    }
+    .sel-trigger:hover { border-color: #B0BEE0; background: white; }
+    .sel-trigger.open { border-color: var(--blue); background: white; box-shadow: 0 0 0 3px rgba(26,115,232,0.11); }
+    .sel-trigger.is-error { border-color: var(--red); background: var(--red-lt); }
+    .sel-label { flex: 1; font-size: 13.5px; color: var(--text-main); }
+    .sel-label.ph { color: var(--text-muted); }
+    .sel-arrow {
+      color: var(--text-muted); display: flex; flex-shrink: 0;
+      transition: transform 0.18s;
+    }
+    .sel-trigger.open .sel-arrow { transform: rotate(180deg); }
+    .sel-menu {
+      position: absolute; top: calc(100% + 5px); left: 0; right: 0;
+      background: white; border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm); z-index: 9999;
+      box-shadow: var(--shadow-drop); display: none;
+      max-height: 280px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .sel-menu::-webkit-scrollbar { width: 5px; }
+    .sel-menu::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .sel-menu.open { display: block; }
+
+    /* Channel items */
+    .chn-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 16px; cursor: pointer; transition: var(--transition);
+      border-bottom: 1px solid var(--inp-bg);
+    }
+    .chn-item:last-child { border-bottom: none; }
+    .chn-item:hover { background: var(--blue-lt); }
+    .chn-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .chn-name { font-size: 13px; font-weight: 600; color: var(--text-main); font-family: 'Google Sans', sans-serif; }
+    .chn-sub  { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+    /* Team items */
+    .team-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; cursor: pointer; transition: var(--transition);
+      border-bottom: 1px solid var(--inp-bg);
+    }
+    .team-item:last-child { border-bottom: none; }
+    .team-item:hover { background: var(--blue-lt); }
+    .team-item.selected { background: var(--blue-lt); }
+    .team-av {
+      width: 36px; height: 36px; border-radius: 50%;
+      object-fit: cover; border: 2px solid var(--border);
+      background: var(--border); flex-shrink: 0;
+    }
+    .team-name { font-size: 13px; font-weight: 600; color: var(--text-main); font-family: 'Google Sans', sans-serif; }
+    .team-role { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .team-check { margin-left: auto; color: var(--blue); display: none; }
+    .team-item.selected .team-check { display: flex; }
+
+    .sel-av {
+      width: 24px; height: 24px; border-radius: 50%;
+      object-fit: cover; border: 1.5px solid var(--border);
+      background: var(--border); display: none; flex-shrink: 0;
+    }
+    .sel-ch-icon { display: none; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* ── CASE ID BADGE ── */
+    .caseid-wrap { position: relative; }
+    .caseid-badge {
+      position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%);
+      display: none; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 600;
+      padding: 2px 8px; border-radius: 99px;
+    }
+    .caseid-badge.valid   { display: flex; background: var(--green-lt); color: var(--green); }
+    .caseid-badge.invalid { display: flex; background: var(--red-lt); color: var(--red); }
+
+    /* ── FOOTER ── */
+    .card-footer {
+      padding: 16px 36px;
+      background: #FAFBFF;
+      border-top: 1.5px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .footer-meta {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-muted);
+      font-family: 'Google Sans', sans-serif;
+    }
+    .footer-meta .material-symbols-outlined { font-size: 14px; }
+
+    /* ── SUBMIT BUTTON ── */
+    .btn-submit {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 11px 30px;
+      background: var(--blue); color: white;
+      border: none; border-radius: var(--radius-sm);
+      font-family: 'Google Sans', sans-serif;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: var(--transition);
+      box-shadow: 0 4px 14px rgba(26,115,232,0.3);
+      white-space: nowrap;
+    }
+    .btn-submit:hover { background: var(--blue-dk); box-shadow: 0 6px 20px rgba(26,115,232,0.4); transform: translateY(-1px); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    /* ── BOTTOM META ── */
+    .bottom-meta {
+      position: relative; z-index: 2;
+      width: 100%; max-width: 920px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; margin-top: 16px;
+    }
+    .bm-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: rgba(255,255,255,0.3);
+      font-family: 'Google Sans', sans-serif;
+    }
+    .bm-item .material-symbols-outlined { font-size: 13px; color: rgba(255,255,255,0.22); }
+    .bm-div { width: 1px; height: 12px; background: rgba(255,255,255,0.1); }
+
+    /* ── SUCCESS OVERLAY ── */
+    .success-overlay {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(14px);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; z-index: 200;
+      border-radius: var(--radius);
+      animation: fadein 0.35s ease;
+    }
+    .success-overlay.show { display: flex; }
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+    .success-icon {
+      width: 76px; height: 76px; border-radius: 19px;
+      background: var(--green); display: flex;
+      align-items: center; justify-content: center;
+      margin-bottom: 22px;
+      box-shadow: 0 8px 30px rgba(52,168,83,0.32);
+    }
+    .success-title {
+      font-family: 'Google Sans', sans-serif;
+      font-size: 26px; font-weight: 700; color: var(--text-main); margin-bottom: 9px;
+    }
+    .success-sub {
+      font-size: 13.5px; color: var(--text-muted);
+      margin-bottom: 28px; max-width: 320px; line-height: 1.65;
+    }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px; border-radius: var(--radius-sm);
+      font-family: 'Google Sans', sans-serif; font-size: 13.5px; font-weight: 600;
+      color: var(--text-sub); background: transparent;
+      border: 1.5px solid var(--border); cursor: pointer; transition: var(--transition);
+    }
+    .btn-ghost:hover { background: var(--inp-bg); border-color: #B0BEE0; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="bg">
+  <div class="bg-dots"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+</div>
+
+<!-- Top meta -->
+<div class="meta-bar">
+  <div class="meta-brand">Google Play Ops &nbsp;·&nbsp; Supervisor Case Submission Portal</div>
+  <div class="meta-right">Internal Use Only</div>
+</div>
+
+<!-- Card -->
+<div class="card" id="card">
+
+  <!-- Header -->
+  <div class="card-hdr">
+    <div class="hdr-left">
+      <div class="hdr-logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" alt="Play">
+      </div>
+      <div>
+        <div class="hdr-title">Play Escalation Request</div>
+        <div class="hdr-sub">Submit a supervisor escalation for a customer-initiated case</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="pill-user">
+        <span class="dot"></span>
+        <span id="auth-email">...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="card-body">
+
+    <!-- SECTION 1: AGENT DETAILS -->
+    <div>
+      <div class="section-head">
+        <div class="section-icon si-blue">
+          <span class="material-symbols-outlined" style="font-size:15px;">person</span>
+        </div>
+        <span class="section-title st-blue">Agent Details</span>
+      </div>
+      <div class="row-3">
+        <!-- LDAP -->
+        <div class="fg">
+          <label class="flabel">LDAP <span class="req">*</span></label>
+          <div class="ac-wrap">
+            <input type="text" id="inp-ldap" class="inp required" placeholder="Search LDAP..." autocomplete="off" style="padding-right:32px;">
+            <div class="ac-arrow"><span class="material-symbols-outlined" style="font-size:17px;">expand_more</span></div>
+            <div class="ac-list" id="ldap-list"></div>
+          </div>
+        </div>
+        <!-- TEAM -->
+        <div class="fg">
+          <label class="flabel">Team <span class="req">*</span></label>
+          <div class="sel-wrap" id="team-wrap">
+            <div class="sel-trigger" id="team-trigger" onclick="toggleDrop('team')">
+              <img class="sel-av" id="team-avatar" alt="">
+              <span class="sel-label ph" id="team-label">— Select Team —</span>
+              <div class="sel-arrow"><span class="material-symbols-outlined" style="font-size:17px;">expand_more</span></div>
+            </div>
+            <div class="sel-menu" id="team-menu"></div>
+          </div>
+          <input type="hidden" id="inp-team" class="required">
+        </div>
+        <!-- CHANNEL -->
+        <div class="fg">
+          <label class="flabel">Channel <span class="req">*</span></label>
+          <div class="sel-wrap" id="channel-wrap">
+            <div class="sel-trigger" id="channel-trigger" onclick="toggleDrop('channel')">
+              <div class="sel-ch-icon" id="channel-icon"></div>
+              <span class="sel-label ph" id="channel-label">— Select Channel —</span>
+              <div class="sel-arrow"><span class="material-symbols-outlined" style="font-size:17px;">expand_more</span></div>
+            </div>
+            <div class="sel-menu" id="channel-menu"></div>
+          </div>
+          <input type="hidden" id="inp-channel" class="required">
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: CASE INFO -->
+    <div>
+      <div class="section-head">
+        <div class="section-icon si-green">
+          <span class="material-symbols-outlined" style="font-size:15px;">assignment</span>
+        </div>
+        <span class="section-title st-green">Case Information</span>
+      </div>
+      <div class="row-2">
+        <!-- CASE ID -->
+        <div class="fg">
+          <label class="flabel">Case ID <span class="req">*</span></label>
+          <div class="caseid-wrap">
+            <input type="text" id="inp-caseid" class="inp required" placeholder="e.g. 4-9048000040554" maxlength="16" autocomplete="off" style="padding-right:88px;">
+            <div class="caseid-badge" id="caseid-badge"></div>
+          </div>
+          <div class="fhint"><span>Format: 1 digit · hyphen · 13 digits</span></div>
+        </div>
+        <!-- SYMPTOM -->
+        <div class="fg">
+          <label class="flabel">Symptom / Issue <span class="req">*</span></label>
+          <div class="ac-wrap">
+            <input type="text" id="inp-symptom" class="inp required" placeholder="Search symptoms..." autocomplete="off" style="padding-right:32px;">
+            <div class="ac-arrow"><span class="material-symbols-outlined" style="font-size:17px;">expand_more</span></div>
+            <div class="ac-list" id="symptom-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: ESCALATION DETAILS -->
+    <div>
+      <div class="section-head">
+        <div class="section-icon si-amber">
+          <span class="material-symbols-outlined" style="font-size:15px;">report</span>
+        </div>
+        <span class="section-title st-amber">Escalation Details</span>
+      </div>
+      <div class="row-2">
+        <div class="fg">
+          <label class="flabel">Detailed Customer Issue <span class="req">*</span></label>
+          <textarea id="inp-issue" class="inp required" maxlength="2000" placeholder="Describe the customer's situation — what happened, when, and their expectations..."></textarea>
+          <div class="fhint"><span>Be specific and comprehensive</span><span class="count" id="cnt-issue">0 / 2000</span></div>
+        </div>
+        <div class="fg">
+          <label class="flabel">Reason for Escalation <span class="req">*</span></label>
+          <textarea id="inp-reason" class="inp required" maxlength="1000" placeholder="Why does this case require supervisor intervention? Explain urgency and expected outcome..."></textarea>
+          <div class="fhint"><span>Explain the urgency and impact</span><span class="count" id="cnt-reason">0 / 1000</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card-body -->
+
+  <!-- Footer -->
+  <div class="card-footer">
+    <div class="footer-meta">
+      <span class="material-symbols-outlined">lock</span>
+      Cases reviewed by Supports &nbsp;·&nbsp; Data Secured via Google Workspace
+    </div>
+    <button class="btn-submit" id="btn-submit" onclick="submitEscalation()">
+      <span class="material-symbols-outlined" style="font-size:17px;">send</span>
+      Submit Escalation
+    </button>
+  </div>
+
+  <!-- Success overlay -->
+  <div class="success-overlay" id="success-view">
+    <div class="success-icon">
+      <span class="material-symbols-outlined" style="font-size:40px;color:white;">check_circle</span>
+    </div>
+    <div class="success-title">Escalation Submitted!</div>
+    <div class="success-sub">Your SME has been notified and the case is now in the queue. You'll receive a confirmation email shortly.</div>
+    <button class="btn-ghost" onclick="resetForm()">
+      <span class="material-symbols-outlined" style="font-size:16px;">add_circle</span>
+      Submit Another Case
+    </button>
+  </div>
+
+</div><!-- /card -->
+
+<!-- Bottom meta -->
+<div class="bottom-meta">
+  <div class="bm-item"><span class="material-symbols-outlined">shield</span>Internal Use Only</div>
+  <div class="bm-div"></div>
+  <div class="bm-item"><span class="material-symbols-outlined">support_agent</span>Customer-Initiated Cases Only</div>
+  <div class="bm-div"></div>
+  <div class="bm-item"><span class="material-symbols-outlined">lock</span>Secured via Google SSO</div>
+</div>
+
+<script>
+var LDAPS = ["randydavid","leodigariojr","amvalenzuela","patrickagustin","doradoj","johnpaulb","jpintucan","kestavillo","chonasevilla","crisjustine","isiahraven","camota","annearimiko","mikevincentr","dandreimarviel","aligarbes","ericaelaine","cyrilmark","alzona","nlontoc","ziaeline","mscruz","elaineaidamae","matala","marlynb","khrisjean","hazeljeang","miape","wilmarz","earlriamae","wellaangel","ecanillo","johndaleg","sabellano","mhae","finep","andypatrick","jaddymie","edelrose","donhael","tiffanygaile","kimberlymaet","inot","leaannr","mcamba","lizettemarie","annietolentino","deitherjay","meleazar","galido","delamide","jpalces","rtaguibalos","fortaliza","khristophers","karlpatrickb","garife","adpantoja","bbaradia","rufflorence","fritcy","edjievicente","dezhleronn","afinocencio","ccrevilla","markrobertt","maryroseperez","fwynn","krishaangelica","naomies","janineenriquez","gretelmarie","edar","aalcover","winajane","kimgemilo","vinceryan","charityg","ecuasion","charisseshyne","rotairo","jameskhyle","gelordave","fatimajoyce","msinag","bacabac","gencian","feliciano","asuzette","rmontanez","msylva","mariaelenar","clalugan","rbarce","ganiron","rmdelacruz","sfaderugao","ehllamae","catherinemagno","gilmerd","jhonpauli","marcangelob","npenaflor","jakemiealaiza","johncarlosf","maverickjohnb","bonagua","lornlyhn","fbasera","raco","jonnalynq","christenenina","apaap","carljhon","jsebua","maannjessica","francisnicole","cabilete","josiahjeir","welynjoy","guibone","jesclariel","aaantonio","planasj","armenionj","dhafney","ephraem","ramossheryn","nonas","jvcaballero","reymarkl","ocheaiii","jaimeem","aantigua","jhonmhel","ayamifaith","natashanina","jessamaer","owenjoseph","mtampus","glydennicole","ricoz","zenilyn","glendyloua","georgettemay","davejoe","athenaching","sheriebel","jbalugo","dexterroldan","racquelmorales","msfortes","rocoj","ygvillanueva","kylajulia","mariailaria","mhaila","rnavales","pompeia","gatapia","timajo","karenjoyb","annchristined","lesjhankaye","lovellejoy","johnlafrance","elmari","rienard","maanthonette","theresejoy","dianacarla","shundara","princemichael","noelperez","kennethwhesley","johnnoelp","kareenm","caranoo","vequezo","torreon","chilado","yguinto","refugio","anggam","leonoral","palomarj","cedricanthony","maekaila","krisangelo","nicoleflores","genlee","jecylangela","codeniera","jasminmariano","dmacalinao","johnkennedyr","arbasj","maicaangela","wcesario","mariakristinas","gandecila","sandraleea","emelinl","norphaina","jaimegabriel","mhelanthony","jechol","readoanarose","pilac","johroberts","sappholaramae","carloswendell","rodelon","albernardo","triciabel","johncarlolucio","irishjoyceg"].sort();
+
+var SYMS = ["Book missing pages or sections Movie missing scenes","Download books Download movies & TV episodes","Rent a book Rent a movie or show","(Rewards) Cannot redeem rewards","[Consult] Failed Transaction","[Consult] Item not received","About accepted payment methods","About accessibility at Google","About accessibility for blind & low vision","About accessibility for Cognitive disabilities","About accessibility for Deaf and Hearing Impaired","About accessibility Mobility/Dexterity Impairment","About authorization holds","About auto-narrated audiobooks","About Chromecast with Google TV","About content release dates","About current events banners on store front","About Disability","About Disability outside of expertise","About Entertainment Space availability","About Entertainment Space functionality","About financing status","About Gift Card promotions","About Google disability partnership program","About Google One benefits","About Google Play Instant Apps","About Google TV app availability","About Keyboard shortcuts","About multiplayer capabilities","About other billing system","About physical vs digital content","About Play balance","About Play Points","About Play Protect","About renting content","About using Roku","About Wear OS","About your Google account","Abuse","Account or device limits reached","Account Recovery","Account sign-in & security","Account status issue","Account suspended","Accruing points issues","Add account","Add AliPayHK","Add Coins.ph","Add direct debit","Add money to Play","Add Octopus","Add PayMaya","Add payment method","Apps on Chromebook missing","Apps on Chromebook not downloading","Apps on Chromebook not working","Audiobook doesn't play","Book doesn't load","Book missing pages or sections","Books using too much device storage space","Bought by mistake","Buy movies","Buy with Play balance","Can't add Kid's School Account","Can't buy Play credit at store","Can't cancel subscription","Can't connect","Can't download apps","Can't find a book in Google Play Books store","Can't find a movie in Google Play Movies","Can't find an app","Can't find book in the Books App","Can't find content","Can't find content in the Newsstand app","Can't find game in the Games App","Can't find installed PC games","Can't find Play Store","Can't find subscription","Can't fully download an Google Play Instant App","Can't join or create a family","Can't load Google Play Instant Apps","Can't purchase Play content","Can't purchase Play content on iOS","Can't read offline","Can't redeem device promotion points","Can't redeem gift card","Can't redeem Google One benefit","Can't redeem promotion points","Can't search","Can't set up budget","Can't stream movie or show","Can't verify print subscription","Can't watch offline","Cancel a pre-order","Cancel adding cash to Play balance","Cancel subscription","Cant find a movie","Card or code lost/stolen","Change app permission","Change instant app settings","Change purchase approval settings","Change your nickname","Changing payment information","Changing profile address","Check Gift About Play balance","Check on payment status","Check payment code","Check Play balance","Check Play Points status","Check point balance","Check subscription details","Close a profile","Complete My Season not working","Contacts issues","Content changed after purchase","Content defective","Content doesn't match description","Content failed to load/play","Content not downloaded","Content won't load","Copyright or trademark infringement","Customize Shelves","Defective apps or in-app purchases","Defective games","Defective hardware","Delete a family group","Delete a Play Games Profile","Delete game data for a specific game","Device freezes on startup (stuck on boot)","Device requirements","Didn't receive points from promotion","Difference between renting and buying","Don't want a purchase","Donate Play balance","Donation question","Download books","Download movies & TV episodes","Duplicate content in library","eBook scanned pages and flowing text","Edit a Play Games Profile","Editing or removing a payment method","Enable WiFi only downloads","Entertainment Space platform issue","Error message","Failed Transaction","Family or friend made purchase","Feature Request for Game Center","Find purchase details","Find recently used Google Play Instant apps","First time setup","Fix problems with Tools for Beginners","Game achievement issue","Game is missing","Game not available","Game progress not syncing","Game progress not syncing across devices","Games using too much device storage space","Games, Books, or Movies crashing after download","Games, Books, or Movies won't load after purchase and download","General issues with comic destination","General issues with sports experience","General personal data / privacy query","General Play technical issue","General questions","Gift card already redeemed","Gift card code damaged","Gift card code mistyped","Gift card not activated","Gift card refund","Gift card scam","Google app developer issue","Google Play Books crashes or won't load","Google Play Books missing from device","Google Play crashes or won't load","Google Play Games missing from device","Google Play Movies & TV crashes or won't load","Google Play Movies & TV missing from device","Google Play Newsstand crashes or won't load","Google Workspace account access","HD not supported on device","HD quality issue","How to access Google TV content","How to cast content","How to change System settings","How to check eligibility","How to check my Play Points","How to create new account","How to customize display","How to download and use Chrome player extensions","How to enable captions","How to find content in the Play Store","How to hide or archive content","How to pre-order","How to redeem a gift card","How to redeem Play Points benefits","How to reset recommendations","How to use a Google Play Instant App","How to use accessibility features","How to use audio description","How to use Customize","How to use Google Play web player or website","How to use TalkBack","How to watch on a TV","Identity verification process","Inaccurate content shown","Inactive membership","Incorrect content mapping","Ineligible to join any League","Installation issue","Issue after redeeming points","Issue downloading for offline use","Issue recording or sharing video","Issue with app or game developer","Issue with app syncing","Issue with audiobook","Issue with book syncing","Issue with Chromebook apps","Issue with content provider","Issue with downloaded book","Issue with downloaded game","Issue with game syncing","Issue with gift card country","Issue with Google Play League","Issue with Google Play Streak","Issue with instant app","Issue with Play balance","Issue with Play Games Free Trial","Issue with Play Games Profile","Issue with Play Games Sidekick","Issue with Play Pass","Issue with Play Points Status","Issue with points from promotion","Issue with read aloud","Issue with sale","Issue with season pass","Issue with subtitles or captions","Issue with Underage Payments Profile","Issues with audio","Issues with content quality","Issues with Live streaming to Youtube in Play Games app","Issues with My Videos feature in Play Games app","Issues with Players feature in Play Games app","Issues with points of Play Points program","Issues with recording videos in Play Games app","Item doesn't work","Item not delivered","Japan Specified Commercial Transactions","Kid is not able to redeem/use a Gift Card","Learn about Pixel Pass","Leave a League","Legal & Privacy","Link goes to different content","Listen to audiobooks","Manage a family group","Manage budget setting","Manage child's Google Play gift cards","Manage device storage","Manage family payment method","Manage multiple accounts","Manage Play Games progress","Manage your wishlist","Missing audiobook PDF","Modify Google Workspace MX records","Movie missing scenes","Movie or show missing from library","Movie or TV show won't play","Movie won't play from specific service provider","Movies & TV app not on Smart TVs or Roku","Play Points enrollment","Play Points error message","Play Points issue","Play Store connection issue","Play Store on Chromebook not loading","Play Store won't start","Play third party developer issue","Playback issues","Poor recommendations","Preorder issues","Preorder not delivered on time","Previously available apps missing","Previously available books missing","Previously available games missing","Pricing information","Print a book","Privacy and data","Problems with game performance","Problems with in-game purchases","Profile security","Profile status request","Promo code not working","Promo code wasn't delivered","Purchase not complete","Purchasing issues with points","Questions about compliance/regulations","Questions about Play Points device promotion","Questions about Play Points promotion","Questions about teacher approved badge","Ratings or reviews disappearing or removed","Reached device limit","Reached Play balance limit","Received wrong order","Refund individual book in bundles","Refund or transfer request","Refund policy & process","Refund request denied","Refund status","Remove account","Remove AliPayHK","Remove Coins.ph","Remove content from library","Remove direct debit","Remove Octopus","Remove PayMaya","Removed from a particular League","Rent a book","Rent a movie or show","Report incorrect content ratings","Report unknown data transfer request","Request for transaction status","Resend Gift Card","Results / rankings","Retailer did not give code","Save content to SD card","See devices using Play account","Self unenrollment","Sell your book on Play","Send Google Play your suggestions","Send review request to the team","Set up budget","Set up parental controls","Setup issues with downloaded apps","Sort book library","Spam or pop-up issues","Start a subscription","Switch accounts","Tax questions","There is no link to click on","Title not available","Transaction history","Transaction status of cash top-up","Transfer account content","Transfer Play Balance","Transfer promotion points","Turn Google Play Instant Apps on or off","Unable to share content in Family Library","Unauthorized charge","Unenroll from Play Points","Uninstall an app","Unrecognized charge","Update apps","Update payment method","Upgrade from movie rental to purchase (Refund)","Upgrade from TV show to Season Pass (Refund)","Upload personal book","Use Kid Dictionary","Use Play Books with Google Classroom","Use Play Points","Use Read and Listen","Use Skim View","Use Tap to Read","Using Family Library","Verify Payment Method","Verify your identity","View purchases","Watch from streaming apps","Watch on a TV","What is COVID-19 tracing","What is Premium Support","Where can I find the public health authority apps","Why does Exposure Notification setting pop up","Write a review","Wrong country or currency","Wrong sale price"];
+
+var CHANNELS = [
+  { value:'Chat',  label:'Chat',  sub:'Live chat support',    icon:'<svg width="20" height="20" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#1A73E8"/><path d="M96 40C65.1 40 40 65.1 40 96c0 10.4 2.8 20.2 7.7 28.6L40 152l28.2-7.5C76.4 149.4 86 152 96 152c30.9 0 56-25.1 56-56S126.9 40 96 40z" fill="#fff"/><circle cx="72" cy="96" r="8" fill="#1A73E8"/><circle cx="96" cy="96" r="8" fill="#1A73E8"/><circle cx="120" cy="96" r="8" fill="#1A73E8"/></svg>' },
+  { value:'Email', label:'Email', sub:'Email support channel', icon:'<svg width="20" height="15" viewBox="0 0 512 384"><rect width="512" height="384" rx="32" fill="#f0f0f0"/><path d="M0 64L256 240 512 64" fill="none" stroke="#EA4335" stroke-width="36"/><path d="M0 64v288a32 32 0 0032 32h448a32 32 0 0032-32V64L256 240z" fill="#fff"/><path d="M0 64L256 240 512 64" fill="none" stroke="#EA4335" stroke-width="36"/></svg>' },
+  { value:'Phone', label:'Phone', sub:'Phone call support',   icon:'<svg width="20" height="20" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#34A853"/><path d="M130.7 120.5c-5.4-5.4-14.2-5.4-19.6 0l-8.2 8.2c-1.1-.6-2.2-1.3-3.3-2-4.6-2.9-10.9-6.9-17.4-13.4-6.6-6.6-10.6-12.9-13.5-17.5-.7-1.1-1.3-2.1-1.9-3.1l5.5-5.5 2.7-2.7c5.4-5.4 5.4-14.2 0-19.6L61.5 52.4c-5.4-5.4-14.2-5.4-19.6 0l-4.6 4.7c-7 7-9.7 17.2-7.4 27.8 3.7 17.1 15.1 36.2 31.8 52.9 16.7 16.7 35.8 28.1 52.9 31.8 10.6 2.3 20.8-.4 27.8-7.4l4.6-4.6c5.5-5.5 5.5-14.3.1-19.7l-16.4-17.4z" fill="#fff"/></svg>' }
+];
+
+var TEAMS = [
+  { value:'Team Steven', ldap:'stevenjosephc' },
+  { value:'Team Gerry',  ldap:'gerrymae'      },
+  { value:'Team Khent',  ldap:'khent'         },
+  { value:'Team James',  ldap:'jamessevilla'  },
+  { value:'Team Denden', ldap:'bernardboy'    },
+  { value:'Team Jim',    ldap:'jadoptante'    },
+  { value:'Team Al',     ldap:'acaluang'      },
+  { value:'Team Faye',   ldap:'fajirnah'      },
+  { value:'Team Mel',    ldap:'tapalla'       },
+  { value:'Team Mary',   ldap:'marineth'      }
+];
+
+// ── AUTOCOMPLETE ──
+function setupAC(inputId, listId, data) {
+  var inp = document.getElementById(inputId);
+  var list = document.getElementById(listId);
+  function render(items) {
+    list.innerHTML = '';
+    if (!items.length) {
+      var d = document.createElement('div'); d.className = 'ac-item no-match'; d.textContent = 'No matches found'; list.appendChild(d); return;
+    }
+    items.slice(0,100).forEach(function(item) {
+      var d = document.createElement('div'); d.className = 'ac-item'; d.textContent = item;
+      d.addEventListener('mousedown', function(e) { e.preventDefault(); inp.value = item; inp.classList.remove('is-error'); list.style.display = 'none'; });
+      list.appendChild(d);
+    });
+  }
+  inp.addEventListener('focus', function() { var q=inp.value.trim().toLowerCase(); render(q?data.filter(function(x){return x.toLowerCase().includes(q);}):data); list.style.display='block'; });
+  inp.addEventListener('input', function() { var q=inp.value.trim().toLowerCase(); render(q?data.filter(function(x){return x.toLowerCase().includes(q);}):data); list.style.display='block'; });
+  inp.addEventListener('keydown', function(e) { if(e.key==='Escape'||e.key==='Enter') list.style.display='none'; });
+  document.addEventListener('click', function(e) { if(!inp.contains(e.target)&&!list.contains(e.target)) list.style.display='none'; });
+}
+setupAC('inp-ldap','ldap-list',LDAPS);
+setupAC('inp-symptom','symptom-list',SYMS);
+
+// ── DROPDOWNS ──
+var openDrop = null;
+function toggleDrop(which) {
+  if(openDrop&&openDrop!==which) closeDrop(openDrop);
+  if(openDrop===which){closeDrop(which);return;}
+  openDrop=which;
+  document.getElementById(which+'-trigger').classList.add('open');
+  document.getElementById(which+'-menu').classList.add('open');
+}
+function closeDrop(which) {
+  if(!which)return;
+  var t=document.getElementById(which+'-trigger'); var m=document.getElementById(which+'-menu');
+  if(t)t.classList.remove('open'); if(m)m.classList.remove('open');
+  if(openDrop===which)openDrop=null;
+}
+document.addEventListener('click', function(e) {
+  if(!openDrop)return;
+  var wrap=document.getElementById(openDrop+'-wrap');
+  if(wrap&&!wrap.contains(e.target))closeDrop(openDrop);
+});
+
+// ── BUILD CHANNEL ──
+(function(){
+  var menu=document.getElementById('channel-menu');
+  CHANNELS.forEach(function(ch){
+    var item=document.createElement('div'); item.className='chn-item';
+    item.innerHTML='<div class="chn-icon">'+ch.icon+'</div><div><div class="chn-name">'+ch.label+'</div><div class="chn-sub">'+ch.sub+'</div></div>';
+    item.addEventListener('mousedown',function(e){
+      e.preventDefault();e.stopPropagation();
+      document.getElementById('inp-channel').value=ch.value;
+      var lbl=document.getElementById('channel-label'); lbl.textContent=ch.label; lbl.classList.remove('ph');
+      var icon=document.getElementById('channel-icon'); icon.innerHTML=ch.icon; icon.style.display='flex';
+      document.getElementById('channel-trigger').classList.remove('is-error');
+      closeDrop('channel');
+    });
+    menu.appendChild(item);
+  });
+})();
+
+// ── BUILD TEAM ──
+(function(){
+  var menu=document.getElementById('team-menu');
+  TEAMS.forEach(function(tm){
+    var item=document.createElement('div'); item.className='team-item'; item.dataset.value=tm.value;
+    var pri='https://moma-teams-photos.corp.google.com/photos/'+tm.ldap+'?sz=100&type=PLUS';
+    var fal='https://moma-teams-photos.corp.google.com/photos/'+tm.ldap+'?sz=100&type=SECURITY&type=SILHOUETTE';
+    item.innerHTML='<img class="team-av" src="'+pri+'" onerror="this.src=\''+fal+'\'" alt=""><div><div class="team-name">'+tm.value+'</div><div class="team-role">Supervisor</div></div><span class="material-symbols-outlined team-check" style="font-size:17px;">check_circle</span>';
+    item.addEventListener('mousedown',function(e){
+      e.preventDefault();e.stopPropagation();
+      menu.querySelectorAll('.team-item').forEach(function(el){el.classList.remove('selected');});
+      item.classList.add('selected');
+      document.getElementById('inp-team').value=tm.value;
+      var lbl=document.getElementById('team-label'); lbl.textContent=tm.value; lbl.classList.remove('ph');
+      var av=document.getElementById('team-avatar'); av.src=pri; av.onerror=function(){this.src=fal;}; av.style.display='block';
+      document.getElementById('team-trigger').classList.remove('is-error');
+      closeDrop('team');
+    });
+    menu.appendChild(item);
+  });
+})();
+
+// ── CASE ID ──
+var caseIdInp=document.getElementById('inp-caseid');
+var caseIdBadge=document.getElementById('caseid-badge');
+function validateCaseId(){
+  var val=caseIdInp.value.trim();
+  if(!val){caseIdBadge.className='caseid-badge';caseIdBadge.innerHTML='';caseIdInp.classList.remove('is-valid','is-error');return false;}
+  if(/^\d-\d{13}$/.test(val)){caseIdBadge.className='caseid-badge valid';caseIdBadge.innerHTML='<span class="material-symbols-outlined" style="font-size:12px;">check_circle</span> Valid';caseIdInp.classList.add('is-valid');caseIdInp.classList.remove('is-error');return true;}
+  caseIdBadge.className='caseid-badge invalid';caseIdBadge.innerHTML='<span class="material-symbols-outlined" style="font-size:12px;">error</span> Invalid';caseIdInp.classList.add('is-error');caseIdInp.classList.remove('is-valid');return false;
+}
+caseIdInp.addEventListener('input',validateCaseId);
+
+// ── COUNTERS ──
+function updateCounters(){
+  document.getElementById('cnt-issue').textContent=document.getElementById('inp-issue').value.length+' / 2000';
+  document.getElementById('cnt-reason').textContent=document.getElementById('inp-reason').value.length+' / 1000';
+}
+document.getElementById('inp-issue').addEventListener('input',updateCounters);
+document.getElementById('inp-reason').addEventListener('input',updateCounters);
+
+// ── VALIDATE ALL ──
+function validateAll(){
+  var ok=true;
+  document.querySelectorAll('.required').forEach(function(field){
+    if(!field.value.trim()){
+      ok=false;
+      if(field.id==='inp-team'){document.getElementById('team-trigger').classList.add('is-error');return;}
+      if(field.id==='inp-channel'){document.getElementById('channel-trigger').classList.add('is-error');return;}
+      field.classList.add('is-error');
+      field.addEventListener('input',function(){field.classList.remove('is-error');},{once:true});
+    }
+  });
+  if(!validateCaseId())ok=false;
+  return ok;
+}
+
+// ── SUBMIT ──
+function submitEscalation(){
+  if(!validateAll()){
+    var first=document.querySelector('.is-error');
+    if(first)first.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  var btn=document.getElementById('btn-submit');
+  btn.disabled=true;
+  btn.innerHTML='<span class="material-symbols-outlined" style="font-size:17px;animation:spin 1s linear infinite;">progress_activity</span> Submitting...';
+
+  var payload={
+    ldap:document.getElementById('inp-ldap').value.trim(),
+    team:document.getElementById('inp-team').value,
+    caseId:document.getElementById('inp-caseid').value.trim(),
+    channel:document.getElementById('inp-channel').value,
+    symptom:document.getElementById('inp-symptom').value.trim(),
+    detailedIssue:document.getElementById('inp-issue').value.trim(),
+    reason:document.getElementById('inp-reason').value.trim()
+  };
+
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run
+      .withSuccessHandler(function(res){
+        btn.disabled=false;
+        if(res.success){document.getElementById('success-view').classList.add('show');}
+        else{alert('Error: '+res.message);btn.innerHTML='<span class="material-symbols-outlined" style="font-size:17px;">send</span> Submit Escalation';}
+      })
+      .withFailureHandler(function(err){
+        btn.disabled=false;alert('Error: '+err);
+        btn.innerHTML='<span class="material-symbols-outlined" style="font-size:17px;">send</span> Submit Escalation';
+      })
+      .submitEscalation(payload);
+  } else {
+    setTimeout(function(){btn.disabled=false;document.getElementById('success-view').classList.add('show');},1200);
+  }
+}
+
+// ── RESET ──
+function resetForm(){
+  ['inp-ldap','inp-team','inp-caseid','inp-channel','inp-symptom','inp-issue','inp-reason'].forEach(function(id){document.getElementById(id).value='';});
+  var cl=document.getElementById('channel-label'); cl.textContent='— Select Channel —'; cl.classList.add('ph');
+  var ci=document.getElementById('channel-icon'); ci.innerHTML=''; ci.style.display='none';
+  var tl=document.getElementById('team-label'); tl.textContent='— Select Team —'; tl.classList.add('ph');
+  document.getElementById('team-avatar').style.display='none';
+  document.querySelectorAll('.team-item').forEach(function(el){el.classList.remove('selected');});
+  caseIdBadge.className='caseid-badge';caseIdBadge.innerHTML='';caseIdInp.classList.remove('is-valid','is-error');
+  document.querySelectorAll('.is-error').forEach(function(el){el.classList.remove('is-error');});
+  updateCounters();
+  document.getElementById('success-view').classList.remove('show');
+  var btn=document.getElementById('btn-submit');btn.disabled=false;
+  btn.innerHTML='<span class="material-symbols-outlined" style="font-size:17px;">send</span> Submit Escalation';
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run.withSuccessHandler(function(res){
+      if(res&&res.email){document.getElementById('auth-email').textContent=res.email;if(!document.getElementById('inp-ldap').value)document.getElementById('inp-ldap').value=res.email.split('@')[0];}
+    }).getSessionAndRole();
+  }
+}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',function(){
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run.withSuccessHandler(function(res){
+      if(res&&res.email){document.getElementById('auth-email').textContent=res.email;if(!document.getElementById('inp-ldap').value)document.getElementById('inp-ldap').value=res.email.split('@')[0];}
+    }).getSessionAndRole();
+  } else {
+    document.getElementById('auth-email').textContent='stevenjosephc@google.com';
+    document.getElementById('inp-ldap').value='stevenjosephc';
+  }
+});
+</script>
+</body>
+</html>
