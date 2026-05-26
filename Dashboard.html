@@ -3203,7 +3203,7 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
 
       // Updated regex for X-XXXXXXXXXXXX (e.g. 2-894900004135)
       // Supporting 1 digit - 12 digits as shown in example
-      if (!/^\d-\d{12}$/.test(payload.caseId || '')) {
+      if (!/^\d-\d{13}$/.test(payload.caseId || '')) {
         document.getElementById('f-caseId').classList.add('error');
         showToast('Invalid Case ID format (X-XXXXXXXXXXXX)');
         ok = false;
