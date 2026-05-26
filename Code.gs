@@ -178,20 +178,15 @@ function requireSME_() {
 
 function doGet(e) {
   _ensureSchema();
-  if (e && e.parameter && e.parameter.page === 'dashboard') {
-    return HtmlService.createTemplateFromFile('Dashboard')
-        .evaluate().setTitle('Escalations - Google Play')
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-  }
   if (e && e.parameter && e.parameter.page === 'schedule') {
     return HtmlService.createTemplateFromFile('Schedule')
         .evaluate().setTitle('Team Schedule - Google Play')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
   }
-  return HtmlService.createTemplateFromFile('Index')
-      .evaluate().setTitle('Play Escalation Request')
+  // Default to Dashboard
+  return HtmlService.createTemplateFromFile('Dashboard')
+      .evaluate().setTitle('Escalations - Google Play')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
@@ -221,7 +216,7 @@ function submitEscalation(formData) {
       sheet.setFrozenRows(1);
     }
 
-    if (!/^\d-\d{13}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
+    if (!/^\d-\d{12,13}$/.test(formData.caseId.trim())) return { success: false, message: 'Invalid Case ID format.' };
 
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
@@ -257,6 +252,26 @@ _log('SUBMIT', submitterEmail, 'Case submitted', -1, formData.caseId, formData.l
    READ FUNCTIONS (Upgraded for Enterprise Speed & Caching)
    ═══════════════════════════════════════════════════════════════════ */
 
+/**
+ * Pings a case to indicate active viewing (SME Collision Detection).
+ */
+function pingCase(caseId) {
+  const email = Session.getActiveUser().getEmail();
+  if (!isUserSME_(email)) return;
+  const ldap = email.split('@')[0].toLowerCase();
+
+  const cache = CacheService.getScriptCache();
+  const key = 'viewers_' + caseId;
+  let viewers = JSON.parse(cache.get(key) || '[]');
+
+  // Remove expired (older than 2 mins) or duplicate
+  const now = Date.now();
+  viewers = viewers.filter(v => v.ldap !== ldap && (now - v.ts) < 120000);
+  viewers.push({ ldap: ldap, ts: now });
+
+  cache.put(key, JSON.stringify(viewers), 125); // Cache for slightly more than 2 mins
+}
+
 function getOpenCases() {
   _checkRateLimit('getOpenCases');
   const ss = SpreadsheetApp.openById(MASTER_DB_ID);
@@ -282,8 +297,15 @@ function getOpenCases() {
     const isMine    = (handledBy.toLowerCase() === myEmail) ||
                       (claimLdap === myLdap && claimLdap !== '');
 
+    const viewers = JSON.parse(CacheService.getScriptCache().get('viewers_' + row[3]) || '[]');
+    const now = Date.now();
+    const activeViewers = viewers
+      .filter(v => (now - v.ts) < 120000 && v.ldap !== myLdap)
+      .map(v => v.ldap);
+
     openCases.push({
       rowIdx        : index + 3,
+      viewers       : activeViewers,
       timestamp     : row[0]  ? new Date(row[0]).toString()  : '',
       submitter     : String(row[1]  || ''),
       ldap          : String(row[2]  || ''),
@@ -674,7 +696,6 @@ function claimCase(rowIdx) {
 
     sheet.getRange(rowIdx, 16).setValue(claimedAt); // col 16 (P) = Claimed At
     sheet.getRange(rowIdx, 14).setValue(smeEmail);  // <-- PUT THIS BACK HERE
-    _log('CLAIM', smeEmail, 'Case claimed', rowIdx, caseData.caseId, caseData.ldap);
 
     const row = sheet.getRange(rowIdx, 1, 1, 16).getValues()[0];
     const caseData = {
@@ -689,6 +710,8 @@ function claimCase(rowIdx) {
       caseLink     : String(row[9] || ''),
       timestamp    : row[0] ? new Date(row[0]).toString() : ''
     };
+
+    _log('CLAIM', smeEmail, 'Case claimed', rowIdx, caseData.caseId, caseData.ldap);
 
     sendClaimNotification_(caseData, smeEmail);
 
@@ -780,58 +803,70 @@ function sendClaimNotification_(caseData, smeEmail) {
     if (!caseData.submitter) return;
 
     const smeLdap    = smeEmail.split('@')[0];
+    const maskedSme  = maskLdap_(smeLdap);
     const subject    = '✅ Your escalation has been picked up — Case ' + caseData.caseId;
     const claimedAt  = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
-    const submittedAt = caseData.timestamp
-      ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })
-      : '—';
 
     const caseLinkHtml = caseData.caseLink
-      ? '<a href="' + caseData.caseLink + '" style="color:#1A73E8;">Open Case</a>'
+      ? '<a href="' + caseData.caseLink + '" style="color:#007AFF; text-decoration:none; font-weight:600;">Open in Dashboard</a>'
       : '—';
 
     const body = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Google Sans',Roboto,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:600px;">
-        <tr>
-          <td style="background:linear-gradient(135deg,#1A73E8 0%,#0d47a1 100%);padding:28px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td><div style="color:#ffffff;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Google Play · Escalations</div>
-              <div style="color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">Case Picked Up</div></td>
-              <td align="right"><div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;display:inline-block;"><span style="color:#ffffff;font-size:20px;">✅</span></div></td>
-            </tr></table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:28px 32px;">
-            <p style="margin:0 0 20px;color:#3c4043;font-size:15px;line-height:1.6;">
-              Hi <strong>${caseData.ldap}</strong>, your escalation has been picked up by <strong>${smeLdap}</strong> and is now <span style="color:#1A73E8;font-weight:600;">In Progress</span>.
-            </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;border-left:4px solid #1A73E8;margin-bottom:20px;">
-              <tr><td style="padding:20px 24px;">
-                <div style="color:#5f6368;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">Case Details</div>
-                ${row_('Case ID',      caseData.caseId)}
-                ${row_('Symptom',      caseData.symptom)}
-                ${row_('Channel',      caseData.channel)}
-                ${row_('Team',         caseData.team)}
-                ${row_('Case Link',    caseLinkHtml, true)}
-                ${row_('Submitted',    submittedAt)}
-                ${row_('Picked up at', claimedAt)}
-                ${row_('Handled by',   smeLdap)}
-              </td></tr>
-            </table>
-            <p style="margin:0;color:#5f6368;font-size:13px;line-height:1.6;">You will receive another notification once your case has been resolved. If you have urgent updates, please contact your supervisor directly.</p>
-          </td>
-        </tr>
-        <tr><td style="background:#f8f9fa;padding:16px 32px;border-top:1px solid #e8eaed;"><p style="margin:0;color:#9aa0a6;font-size:12px;">This is an automated message from the Google Play Escalations Dashboard. Please do not reply to this email.</p></td></tr>
-      </table>
-    </td></tr>
-  </table>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { margin:0; padding:0; background-color:#F2F2F7; font-family:'Inter', -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+    .email-container { max-width:600px; margin:40px auto; background:#FFFFFF; border-radius:32px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.08); border:1px solid rgba(0,0,0,0.05); }
+    .header { background:linear-gradient(135deg, #007AFF 0%, #5856D6 100%); padding:40px; text-align:center; color:#FFFFFF; position:relative; }
+    .play-logo { width:64px; height:64px; margin-bottom:20px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+    .status-badge { display:inline-block; padding:6px 16px; background:rgba(255,255,255,0.2); border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; backdrop-filter:blur(10px); }
+    .content { padding:48px 40px; color:#1C1C1E; }
+    .greeting { font-size:24px; font-weight:700; margin-bottom:16px; letter-spacing:-0.5px; }
+    .message { font-size:16px; line-height:1.6; color:#3A3A3C; margin-bottom:32px; }
+    .info-card { background:#F2F2F7; border-radius:24px; padding:32px; margin-bottom:32px; }
+    .info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(0,0,0,0.05); }
+    .info-row:last-child { border-bottom:none; }
+    .info-label { color:#8E8E93; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; }
+    .info-value { color:#1C1C1E; font-size:14px; font-weight:600; text-align:right; }
+    .footer { padding:32px; background:#F2F2F7; text-align:center; color:#8E8E93; font-size:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" class="play-logo" alt="Google Play">
+      <br>
+      <div class="status-badge">Case Claimed</div>
+      <h1 style="margin:0; font-size:28px; font-weight:700;">We're on it.</h1>
+    </div>
+    <div class="content">
+      <div class="greeting">Hi ${caseData.ldap},</div>
+      <div class="message">
+        Your escalation has been picked up by <strong>${maskedSme}</strong>. They are currently reviewing the details and will provide a resolution shortly.
+      </div>
+      <div class="info-card">
+        <div style="margin-bottom:20px; font-weight:700; font-size:14px; color:#8E8E93; text-transform:uppercase; letter-spacing:1px;">Escalation Details</div>
+        ${row_('Case ID',      caseData.caseId)}
+        ${row_('Symptom',      caseData.symptom)}
+        ${row_('Channel',      caseData.channel)}
+        ${row_('Team',         caseData.team)}
+        ${row_('Dashboard',    caseLinkHtml, true)}
+        ${row_('Claimed At',   claimedAt)}
+        ${row_('Assigned SME', maskedSme)}
+      </div>
+      <div style="text-align:center;">
+        <a href="https://cases.connect.corp.google.com/${caseData.caseId}" style="display:inline-block; padding:16px 32px; background:#007AFF; color:#FFFFFF; text-decoration:none; border-radius:16px; font-weight:700; box-shadow:0 8px 24px rgba(0,122,255,0.3);">View Case Details</a>
+      </div>
+    </div>
+    <div class="footer">
+      This is a system-generated notification from the <strong>Google Play Escalations Engine</strong>.<br>
+      Please do not reply to this email. For urgent updates, contact your supervisor.
+    </div>
+  </div>
 </body>
 </html>`;
 
@@ -839,7 +874,8 @@ function sendClaimNotification_(caseData, smeEmail) {
       to      : caseData.submitter,
       subject : subject,
       htmlBody: body,
-      name    : 'Play Escalations · Google Play'
+      name    : 'Google Play Support System',
+      noReply : true
     });
 
   } catch (e) {
@@ -852,71 +888,79 @@ function sendResolveNotification_(caseData, smeEmail) {
     if (!caseData.submitter) return;
 
     const smeLdap     = smeEmail.split('@')[0];
+    const maskedSme   = maskLdap_(smeLdap);
     const subject     = '🎉 Your escalation has been resolved — Case ' + caseData.caseId;
     const resolvedAt  = new Date(caseData.resolutionTime).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
-    const submittedAt = caseData.timestamp
-      ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' })
-      : '—';
-
-    const caseLinkHtml = caseData.caseLink
-      ? '<a href="' + caseData.caseLink + '" style="color:#1A73E8;">Open Case</a>'
-      : '—';
 
     const body = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Google Sans',Roboto,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:600px;">
-        <tr>
-          <td style="background:linear-gradient(135deg,#34a853 0%,#1e7e34 100%);padding:28px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td><div style="color:#ffffff;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Google Play · Escalations</div>
-              <div style="color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;">Case Resolved</div></td>
-              <td align="right"><div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:8px 14px;display:inline-block;"><span style="color:#ffffff;font-size:20px;">🎉</span></div></td>
-            </tr></table>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:28px 32px;">
-            <p style="margin:0 0 20px;color:#3c4043;font-size:15px;line-height:1.6;">
-              Hi <strong>${caseData.ldap}</strong>, your escalation has been <span style="color:#34a853;font-weight:600;">resolved</span> by <strong>${smeLdap}</strong>.
-            </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8f9fa;border-radius:8px;border-left:4px solid #34a853;margin-bottom:20px;">
-              <tr><td style="padding:20px 24px;">
-                <div style="color:#5f6368;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">Case Details</div>
-                ${row_('Case ID',     caseData.caseId)}
-                ${row_('Symptom',     caseData.symptom)}
-                ${row_('Channel',     caseData.channel)}
-                ${row_('Team',        caseData.team)}
-                ${row_('Case Link',   caseLinkHtml, true)}
-                ${row_('Submitted',   submittedAt)}
-                ${row_('Resolved at', resolvedAt)}
-                ${row_('Resolved by', smeLdap)}
-              </td></tr>
-            </table>
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#e8f5e9;border-radius:8px;border-left:4px solid #34a853;margin-bottom:20px;">
-              <tr><td style="padding:20px 24px;">
-                <div style="color:#2e7d32;font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;">SME Remarks</div>
-                <div style="color:#3c4043;font-size:14px;line-height:1.7;white-space:pre-wrap;">${escHtml_(caseData.remarks)}</div>
-              </td></tr>
-            </table>
-            <p style="margin:0;color:#5f6368;font-size:13px;line-height:1.6;">If you have any follow-up concerns, please contact your supervisor or submit a new escalation request.</p>
-          </td>
-        </tr>
-        <tr><td style="background:#f8f9fa;padding:16px 32px;border-top:1px solid #e8eaed;"><p style="margin:0;color:#9aa0a6;font-size:12px;">This is an automated message from the Google Play Escalations Dashboard. Please do not reply to this email.</p></td></tr>
-      </table>
-    </td></tr>
-  </table>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { margin:0; padding:0; background-color:#F2F2F7; font-family:'Inter', -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+    .email-container { max-width:600px; margin:40px auto; background:#FFFFFF; border-radius:32px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.08); border:1px solid rgba(0,0,0,0.05); }
+    .header { background:linear-gradient(135deg, #34C759 0%, #00C7BE 100%); padding:40px; text-align:center; color:#FFFFFF; }
+    .play-logo { width:64px; height:64px; margin-bottom:20px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+    .status-badge { display:inline-block; padding:6px 16px; background:rgba(255,255,255,0.2); border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; backdrop-filter:blur(10px); }
+    .content { padding:48px 40px; color:#1C1C1E; }
+    .greeting { font-size:24px; font-weight:700; margin-bottom:16px; letter-spacing:-0.5px; }
+    .message { font-size:16px; line-height:1.6; color:#3A3A3C; margin-bottom:32px; }
+    .remarks-card { background:#F2F2F7; border-radius:24px; padding:32px; margin-bottom:32px; border-left:4px solid #34C759; }
+    .remarks-title { font-weight:700; font-size:13px; color:#34C759; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:12px; }
+    .remarks-text { font-size:15px; line-height:1.7; color:#1C1C1E; white-space:pre-wrap; }
+    .info-card { background:#F8F8FA; border-radius:20px; padding:24px; margin-bottom:32px; }
+    .info-row { display:flex; justify-content:space-between; padding:8px 0; }
+    .info-label { color:#8E8E93; font-size:12px; font-weight:600; }
+    .info-value { color:#1C1C1E; font-size:12px; font-weight:600; text-align:right; }
+    .footer { padding:32px; background:#F2F2F7; text-align:center; color:#8E8E93; font-size:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" class="play-logo" alt="Google Play">
+      <br>
+      <div class="status-badge">Case Resolved</div>
+      <h1 style="margin:0; font-size:28px; font-weight:700;">Issue Resolved.</h1>
+    </div>
+    <div class="content">
+      <div class="greeting">Great news, ${caseData.ldap}!</div>
+      <div class="message">
+        Your escalation regarding Case <strong>${caseData.caseId}</strong> has been resolved. Please review the resolution details below.
+      </div>
+
+      <div class="remarks-card">
+        <div class="remarks-title">Resolution Remarks</div>
+        <div class="remarks-text">${escHtml_(caseData.remarks)}</div>
+      </div>
+
+      <div class="info-card">
+        ${row_('Case ID',     caseData.caseId)}
+        ${row_('Resolved At', resolvedAt)}
+        ${row_('SME',         maskedSme)}
+      </div>
+
+      <div style="text-align:center;">
+        <a href="https://cases.connect.corp.google.com/${caseData.caseId}" style="display:inline-block; padding:16px 32px; background:#34C759; color:#FFFFFF; text-decoration:none; border-radius:16px; font-weight:700; box-shadow:0 8px 24px rgba(52,199,89,0.3);">Close Case</a>
+      </div>
+    </div>
+    <div class="footer">
+      This is a system-generated notification from the <strong>Google Play Escalations Engine</strong>.<br>
+      Please do not reply to this email.
+    </div>
+  </div>
 </body>
 </html>`;
 
     MailApp.sendEmail({
       to      : caseData.submitter,
       subject : subject,
-      htmlBody: body
+      htmlBody: body,
+      name    : 'Google Play Support System',
+      noReply : true
     });
 
   } catch (e) {
@@ -927,10 +971,21 @@ function sendResolveNotification_(caseData, smeEmail) {
 function row_(label, value, isHtml) {
   const displayValue = isHtml ? (value || '—') : escHtml_(value || '—');
   return `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid rgba(0,0,0,0.05);">
       <tr>
-        <td width="38%" style="color:#5f6368;font-size:13px;padding-right:8px;vertical-align:top;">${label}</td>
-        <td style="color:#3c4043;font-size:13px;font-weight:500;vertical-align:top;">${displayValue}</td>
+        <td style="padding:12px 0; color:#8E8E93; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">${label}</td>
+        <td style="padding:12px 0; color:#1C1C1E; font-size:14px; font-weight:600; text-align:right;">${displayValue}</td>
+      </tr>
+    </table>`;
+}
+
+function slaRow_(label, value, isHtml) {
+  const displayValue = isHtml ? (value || '—') : escHtml_(value || '—');
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid rgba(0,0,0,0.05);">
+      <tr>
+        <td style="padding:10px 0; color:#B06000; font-size:11px; font-weight:700; text-transform:uppercase;">${label}</td>
+        <td style="padding:10px 0; color:#1C1C1E; font-size:13px; font-weight:600; text-align:right;">${displayValue}</td>
       </tr>
     </table>`;
 }
@@ -1171,91 +1226,56 @@ function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
     const body = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Google Sans',Roboto,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:600px;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { margin:0; padding:0; background-color:#F2F2F7; font-family:'Inter', -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+    .email-container { max-width:600px; margin:40px auto; background:#FFFFFF; border-radius:32px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.08); border:1px solid rgba(0,0,0,0.05); }
+    .header { background:linear-gradient(135deg, #FF9500 0%, #FFCC00 100%); padding:40px; text-align:center; color:#FFFFFF; }
+    .play-logo { width:64px; height:64px; margin-bottom:20px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+    .status-badge { display:inline-block; padding:6px 16px; background:rgba(255,255,255,0.2); border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; backdrop-filter:blur(10px); }
+    .content { padding:48px 40px; color:#1C1C1E; }
+    .greeting { font-size:24px; font-weight:700; margin-bottom:16px; letter-spacing:-0.5px; }
+    .message { font-size:16px; line-height:1.6; color:#3A3A3C; margin-bottom:32px; }
+    .info-card { background:#FEF7E0; border-radius:24px; padding:32px; margin-bottom:32px; border-left:4px solid #FF9500; }
+    .info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(0,0,0,0.05); }
+    .info-label { color:#B06000; font-size:11px; font-weight:700; text-transform:uppercase; }
+    .info-value { color:#1C1C1E; font-size:14px; font-weight:600; text-align:right; }
+    .footer { padding:32px; background:#F2F2F7; text-align:center; color:#8E8E93; font-size:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" class="play-logo" alt="Google Play">
+      <br>
+      <div class="status-badge">Pending Reminder</div>
+      <h1 style="margin:0; font-size:28px; font-weight:700;">Still in queue.</h1>
+    </div>
+    <div class="content">
+      <div class="greeting">Hi ${ldap},</div>
+      <div class="message">
+        This is a friendly automated reminder that your escalation for Case <strong>${caseId}</strong> has been pending for over 24 hours.
+      </div>
 
-        <!-- HEADER -->
-        <tr>
-          <td style="background:linear-gradient(135deg,#F9AB00 0%,#E37400 100%);padding:28px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td>
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png"
-                       width="40" height="40" style="border-radius:8px;display:block;" alt="Google Play">
-                </div>
-                <div style="color:#ffffff;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:12px;opacity:0.85;">Google Play · Escalations</div>
-                <div style="color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;margin-top:4px;">24-Hour Pending Reminder</div>
-                <div style="color:rgba(255,255,255,0.8);font-size:13px;margin-top:6px;">Your escalation is still awaiting supervisor action.</div>
-              </td>
-              <td align="right" valign="top">
-                <div style="background:rgba(255,255,255,0.2);border-radius:12px;padding:14px 18px;text-align:center;display:inline-block;">
-                  <div style="font-size:36px;line-height:1;">⏰</div>
-                  <div style="color:#fff;font-size:11px;font-weight:700;margin-top:4px;letter-spacing:.5px;">${hoursOld}h OLD</div>
-                </div>
-              </td>
-            </tr></table>
-          </td>
-        </tr>
+      <div class="info-card">
+        ${slaRow_('Case ID',   caseId)}
+        ${slaRow_('Submitted', submittedStr)}
+        ${slaRow_('Team',      team)}
+        ${slaRow_('Waiting',   hoursOld + ' hours')}
+      </div>
 
-        <!-- STRIPE -->
-        <tr><td style="height:4px;background:linear-gradient(90deg,#4285F4,#EA4335,#FBBC05,#34A853)"></td></tr>
-
-        <!-- BODY -->
-        <tr>
-          <td style="padding:28px 32px;">
-            <p style="margin:0 0 20px;color:#3c4043;font-size:15px;line-height:1.7;">
-              Hi <strong>${ldap}</strong>, this is a friendly reminder that your escalation submitted <strong>${submittedStr}</strong> has been in the queue for over <strong>${hoursOld} hours</strong> and is still awaiting action from a supervisor or SME.
-            </p>
-
-            <!-- CASE DETAILS BOX -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#FEF7E0;border-radius:10px;border-left:4px solid #F9AB00;margin-bottom:24px;">
-              <tr><td style="padding:20px 24px;">
-                <div style="color:#B06000;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">📋 Case Details</div>
-                ${slaRow_('Case ID',   '<a href="' + caseLink + '" style="color:#1A73E8;font-weight:600;">' + caseId + '</a>', true)}
-                ${slaRow_('Agent',     ldap)}
-                ${slaRow_('Symptom',   symptom)}
-                ${slaRow_('Channel',   channel)}
-                ${slaRow_('Team',      team)}
-                ${slaRow_('Submitted', submittedStr)}
-                ${slaRow_('Age',       hoursOld + ' hours in queue')}
-              </td></tr>
-            </table>
-
-            <!-- WHAT TO DO -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#E8F0FE;border-radius:10px;margin-bottom:24px;">
-              <tr><td style="padding:18px 24px;">
-                <div style="color:#1967D2;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">💡 What happens next?</div>
-                <p style="margin:0;color:#3c4043;font-size:13px;line-height:1.7;">
-                  A supervisor or SME from <strong>${team}</strong> will pick up your case shortly. If this is urgent, please reach out to your team lead directly. You will receive another notification if your case remains unresolved at the 48-hour mark.
-                </p>
-              </td></tr>
-            </table>
-
-            <p style="margin:0;color:#5f6368;font-size:12px;line-height:1.6;border-top:1px solid #e8eaed;padding-top:16px;">
-              This is an automated reminder from the Google Play Escalations system. Please do not reply to this email. If you believe this case has already been resolved, no further action is needed.
-            </p>
-          </td>
-        </tr>
-
-        <!-- FOOTER -->
-        <tr>
-          <td style="background:#f8f9fa;padding:16px 32px;border-top:1px solid #e8eaed;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td>
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png"
-                     width="20" height="20" style="display:inline-block;vertical-align:middle;margin-right:8px;" alt="">
-                <span style="color:#9aa0a6;font-size:12px;vertical-align:middle;">Google Play Escalations · Automated Notification · Do not reply</span>
-              </td>
-            </tr></table>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
+      <div style="text-align:center;">
+        <a href="https://cases.connect.corp.google.com/${caseId}" style="display:inline-block; padding:16px 32px; background:#FF9500; color:#FFFFFF; text-decoration:none; border-radius:16px; font-weight:700; box-shadow:0 8px 24px rgba(255,149,0,0.3);">Check Status</a>
+      </div>
+    </div>
+    <div class="footer">
+      This is a system-generated notification from the <strong>Google Play Escalations Engine</strong>.<br>
+      Please do not reply to this email.
+    </div>
+  </div>
 </body>
 </html>`;
 
@@ -1270,7 +1290,7 @@ function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
       cc:       ccList.filter(Boolean).join(','),
       subject:  subject,
       htmlBody: body,
-      name:     'Play Escalations · Google Play',
+      name:     'Google Play Support System',
       noReply:  true
     });
 
@@ -1290,117 +1310,58 @@ function sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
     const body = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f4f6fb;font-family:'Google Sans',Roboto,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:32px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:600px;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { margin:0; padding:0; background-color:#F2F2F7; font-family:'Inter', -apple-system, sans-serif; -webkit-font-smoothing:antialiased; }
+    .email-container { max-width:600px; margin:40px auto; background:#FFFFFF; border-radius:32px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.08); border:1px solid rgba(0,0,0,0.05); }
+    .header { background:linear-gradient(135deg, #FF3B30 0%, #FF453A 100%); padding:40px; text-align:center; color:#FFFFFF; }
+    .play-logo { width:64px; height:64px; margin-bottom:20px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+    .status-badge { display:inline-block; padding:6px 16px; background:rgba(255,255,255,0.2); border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; backdrop-filter:blur(10px); }
+    .content { padding:48px 40px; color:#1C1C1E; }
+    .greeting { font-size:24px; font-weight:700; margin-bottom:16px; letter-spacing:-0.5px; color:#FF3B30; }
+    .message { font-size:16px; line-height:1.6; color:#3A3A3C; margin-bottom:32px; }
+    .urgent-card { background:#FCE8E6; border-radius:24px; padding:32px; margin-bottom:32px; border:2px solid #FF3B30; }
+    .urgent-title { font-weight:800; font-size:13px; color:#FF3B30; text-transform:uppercase; letter-spacing:2px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .info-row { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid rgba(255,59,48,0.1); }
+    .info-label { color:#C5221F; font-size:11px; font-weight:700; text-transform:uppercase; }
+    .info-value { color:#1C1C1E; font-size:14px; font-weight:700; text-align:right; }
+    .footer { padding:32px; background:#F2F2F7; text-align:center; color:#8E8E93; font-size:12px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" class="play-logo" alt="Google Play">
+      <br>
+      <div class="status-badge">SLA Breach Alert</div>
+      <h1 style="margin:0; font-size:28px; font-weight:700;">Action Required.</h1>
+    </div>
+    <div class="content">
+      <div class="greeting">Immediate Attention Needed</div>
+      <div class="message">
+        Escalation for Case <strong>${caseId}</strong> has exceeded the 48-hour response threshold. This case requires immediate intervention to maintain service standards.
+      </div>
 
-        <!-- HEADER -->
-        <tr>
-          <td style="background:linear-gradient(135deg,#C5221F 0%,#EA4335 100%);padding:28px 32px;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td>
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png"
-                     width="40" height="40" style="border-radius:8px;display:block;" alt="Google Play">
-                <div style="color:#ffffff;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:12px;opacity:0.85;">Google Play · Escalations · Urgent Alert</div>
-                <div style="color:#ffffff;font-size:22px;font-weight:700;line-height:1.3;margin-top:4px;">48-Hour SLA Breach Warning</div>
-                <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:6px;">This case has exceeded the 48-hour response threshold and requires immediate attention.</div>
-              </td>
-              <td align="right" valign="top">
-                <div style="background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.4);border-radius:12px;padding:14px 18px;text-align:center;display:inline-block;">
-                  <div style="font-size:36px;line-height:1;">🚨</div>
-                  <div style="color:#fff;font-size:11px;font-weight:700;margin-top:4px;letter-spacing:.5px;">${hoursOld}h OLD</div>
-                </div>
-              </td>
-            </tr></table>
-          </td>
-        </tr>
+      <div class="urgent-card">
+        <div class="urgent-title">🚨 Critical Status</div>
+        ${slaRow_('Case ID',   caseId)}
+        ${slaRow_('Submitted', submittedStr)}
+        ${slaRow_('Team',      team)}
+        ${slaRow_('Queue Time', hoursOld + ' hours')}
+      </div>
 
-        <!-- STRIPE -->
-        <tr><td style="height:4px;background:linear-gradient(90deg,#EA4335,#EA4335,#FBBC05,#EA4335)"></td></tr>
-
-        <!-- URGENT BANNER -->
-        <tr>
-          <td style="background:#FCE8E6;padding:16px 32px;border-bottom:1px solid #F5C6C6;">
-            <p style="margin:0;color:#C5221F;font-size:14px;font-weight:600;text-align:center;">
-              ⚠️ &nbsp;This case has been in the queue for <strong>${hoursOld} hours</strong> without resolution. Management has been notified.
-            </p>
-          </td>
-        </tr>
-
-        <!-- BODY -->
-        <tr>
-          <td style="padding:28px 32px;">
-            <p style="margin:0 0 20px;color:#3c4043;font-size:15px;line-height:1.7;">
-              Hi <strong>${ldap}</strong>, your escalation submitted on <strong>${submittedStr}</strong> has now been pending for over <strong>${hoursOld} hours</strong>. This exceeds the acceptable response threshold. Your team managers have been notified and this case requires <strong style="color:#C5221F;">immediate action</strong>.
-            </p>
-
-            <!-- CASE DETAILS BOX -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#FCE8E6;border-radius:10px;border-left:4px solid #EA4335;margin-bottom:24px;">
-              <tr><td style="padding:20px 24px;">
-                <div style="color:#C5221F;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px;">🚨 Case Details</div>
-                ${slaRow_('Case ID',   '<a href="' + caseLink + '" style="color:#C5221F;font-weight:700;">' + caseId + '</a>', true)}
-                ${slaRow_('Agent',     ldap)}
-                ${slaRow_('Symptom',   symptom)}
-                ${slaRow_('Reason',    reason)}
-                ${slaRow_('Channel',   channel)}
-                ${slaRow_('Team',      team)}
-                ${slaRow_('Submitted', submittedStr)}
-                ${slaRow_('Age',       '<strong style="color:#C5221F;">' + hoursOld + ' hours — SLA BREACHED</strong>', true)}
-              </td></tr>
-            </table>
-
-            <!-- REQUIRED ACTION -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#FEF7E0;border-radius:10px;border-left:4px solid #F9AB00;margin-bottom:24px;">
-              <tr><td style="padding:18px 24px;">
-                <div style="color:#B06000;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;">⚡ Required Action</div>
-                <p style="margin:0 0 10px;color:#3c4043;font-size:13px;line-height:1.7;">
-                  The following actions must be taken immediately:
-                </p>
-                <ul style="margin:0;padding-left:20px;color:#3c4043;font-size:13px;line-height:2;">
-                  <li>An SME or Supervisor from <strong>${team}</strong> must claim and resolve this case immediately.</li>
-                  <li>If the assigned team is unavailable, please escalate to your manager directly.</li>
-                  <li>Update the case in the <a href="https://cases.connect.corp.google.com/${caseId}" style="color:#1A73E8;">Escalations Dashboard</a> once resolved.</li>
-                </ul>
-              </td></tr>
-            </table>
-
-            <!-- MANAGERS NOTIFIED -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#E6F4EA;border-radius:10px;border-left:4px solid #34A853;margin-bottom:24px;">
-              <tr><td style="padding:16px 24px;">
-                <div style="color:#137333;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">✅ Managers Notified</div>
-                <p style="margin:0;color:#3c4043;font-size:13px;line-height:1.6;">
-                  This alert has been automatically copied to the Play Ops management team for visibility and follow-up.
-                </p>
-              </td></tr>
-            </table>
-
-            <p style="margin:0;color:#5f6368;font-size:12px;line-height:1.6;border-top:1px solid #e8eaed;padding-top:16px;">
-              This is an automated urgent alert from the Google Play Escalations system. Please do not reply to this email. This notification was generated because the case exceeded the 48-hour SLA threshold.
-            </p>
-          </td>
-        </tr>
-
-        <!-- FOOTER -->
-        <tr>
-          <td style="background:#f8f9fa;padding:16px 32px;border-top:1px solid #e8eaed;">
-            <table width="100%" cellpadding="0" cellspacing="0"><tr>
-              <td>
-                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png"
-                     width="20" height="20" style="display:inline-block;vertical-align:middle;margin-right:8px;" alt="">
-                <span style="color:#9aa0a6;font-size:12px;vertical-align:middle;">Google Play Escalations · Automated Urgent Alert · Do not reply</span>
-              </td>
-              <td align="right">
-                <span style="color:#EA4335;font-size:11px;font-weight:700;">SLA BREACH · ${hoursOld}h</span>
-              </td>
-            </tr></table>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
+      <div style="text-align:center;">
+        <a href="https://cases.connect.corp.google.com/${caseId}" style="display:inline-block; padding:16px 32px; background:#FF3B30; color:#FFFFFF; text-decoration:none; border-radius:16px; font-weight:700; box-shadow:0 8px 24px rgba(255,59,48,0.3);">Resolve Immediately</a>
+      </div>
+    </div>
+    <div class="footer">
+      This is a <strong>High Priority</strong> automated alert from the Google Play Escalations Engine.<br>
+      Management has been notified of this SLA breach.
+    </div>
+  </div>
 </body>
 </html>`;
 
@@ -1416,13 +1377,20 @@ function sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
       cc:       ccList.filter(Boolean).join(','),
       subject:  subject,
       htmlBody: body,
-      name:     'Play Escalations · Google Play',
+      name:     'Google Play Support System',
       noReply:  true
     });
 
   } catch(e) {
     console.error('sendSLA48hrEmail_ error: ' + e.message);
   }
+}
+
+function maskLdap_(ldap) {
+  if (!ldap) return '—';
+  var s = String(ldap).split('@')[0];
+  if (s.length <= 2) return s;
+  return s[0] + '***' + s.slice(-1);
 }
 
 /* ─────────────────────────────────────────
