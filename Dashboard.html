@@ -994,7 +994,7 @@
   ══════════════════════════════════ -->
   <div class="sidebar">
     <div class="sb-header">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/960px-Google_Play_2022_icon.svg.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
+      <img src="https://www.gstatic.com/images/branding/product/1x/google_play_512dp.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
       <div class="sb-title-wrap">
         <span class="sb-title">Supervisor Cases Dashboard</span>
         <span class="sb-subtitle">Google Play</span>
@@ -1509,6 +1509,13 @@
         .replace(/'/g, '&#039;');
     }
 
+    function maskLdap(ldap) {
+      if (!ldap) return '—';
+      var s = String(ldap).split('@')[0].toLowerCase().trim();
+      if (s.length <= 2) return s;
+      return s[0] + '***' + s.slice(-1);
+    }
+
     var TEAM_COLORS = {
   'Team Steven': 'background:#E8F0FE;color:#1967D2',
   'Team Gerry':  'background:#FCE8E6;color:#C5221F',
@@ -1528,39 +1535,6 @@
     var LDAPS = ["randydavid","leodigariojr","amvalenzuela","patrickagustin","doradoj","johnpaulb","jpintucan","kestavillo","chonasevilla","crisjustine","isiahraven","camota","annearimiko","mikevincentr","dandreimarviel","aligarbes","ericaelaine","cyrilmark","alzona","nlontoc","ziaeline","mscruz","elaineaidamae","matala","marlynb","khrisjean","hazeljeang","miape","wilmarz","earlriamae","wellaangel","ecanillo","johndaleg","sabellano","mhae","finep","andypatrick","jaddymie","edelrose","donhael","tiffanygaile","kimberlymaet","inot","leaannr","mcamba","lizettemarie","annietolentino","deitherjay","meleazar","galido","delamide","jpalces","rtaguibalos","fortaliza","khristophers","karlpatrickb","garife","adpantoja","bbaradia","rufflorence","fritcy","edjievicente","dezhleronn","afinocencio","ccrevilla","markrobertt","maryroseperez","fwynn","krishaangelica","naomies","janineenriquez","gretelmarie","edar","aalcover","winajane","kimgemilo","vinceryan","charityg","ecuasion","charisseshyne","rotairo","jameskhyle","gelordave","fatimajoyce","msinag","bacabac","gencian","feliciano","asuzette","rmontanez","msylva","mariaelenar","clalugan","rbarce","ganiron","rmdelacruz","sfaderugao","ehllamae","catherinemagno","gilmerd","jhonpauli","marcangelob","npenaflor","jakemiealaiza","johncarlosf","maverickjohnb","bonagua","lornlyhn","fbasera","raco","jonnalynq","christenenina","apaap","carljhon","jsebua","maannjessica","francisnicole","cabilete","josiahjeir","welynjoy","guibone","jesclariel","aaantonio","planasj","armenionj","dhafney","ephraem","ramossheryn","nonas","jvcaballero","reymarkl","ocheaiii","jaimeem","aantigua","jhonmhel","ayamifaith","natashanina","jessamaer","owenjoseph","mtampus","glydennicole","ricoz","zenilyn","glendyloua","georgettemay","davejoe","athenaching","sheriebel","jbalugo","dexterroldan","racquelmorales","msfortes","rocoj","ygvillanueva","kylajulia","mariailaria","mhaila","rnavales","pompeia","gatapia","timajo","karenjoyb","annchristined","lesjhankaye","lovellejoy","johnlafrance","elmari","rienard","maanthonette","theresejoy","dianacarla","shundara","princemichael","noelperez","kennethwhesley","johnnoelp","kareenm","caranoo","vequezo","torreon","chilado","yguinto","refugio","anggam","leonoral","palomarj","cedricanthony","maekaila","krisangelo","nicoleflores","genlee","jecylangela","codeniera","jasminmariano","dmacalinao","johnkennedyr","arbasj","maicaangela","wcesario","mariakristinas","gandecila","sandraleea","emelinl","norphaina","jaimegabriel","mhelanthony","jechol","readoanarose","pilac","johroberts","sappholaramae","carloswendell","rodelon","albernardo","triciabel","johncarlolucio","irishjoyceg"].sort();
     var SYMS = ["Book missing pages or sections Movie missing scenes","Download books Download movies & TV episodes","Rent a book Rent a movie or show","(Rewards) Cannot redeem rewards","[Consult] Failed Transaction","[Consult] Item not received","About accepted payment methods","About accessibility at Google","About accessibility for blind & low vision","About accessibility for Cognitive disabilities","About accessibility for Deaf and Hearing Impaired","About accessibility Mobility/Dexterity Impairment","About authorization holds","About auto-narrated audiobooks","About Chromecast with Google TV","About content release dates","About current events banners on store front","About Disability","About Disability outside of expertise","About Entertainment Space availability","About Entertainment Space functionality","About financing status","About Gift Card promotions","About Google disability partnership program","About Google One benefits","About Google Play Instant Apps","About Google TV app availability","About Keyboard shortcuts","About multiplayer capabilities","About other billing system","About physical vs digital content","About Play balance","About Play Points","About Play Protect","About renting content","About using Roku","About Wear OS","About your Google account","Abuse","Account or device limits reached","Account Recovery","Account sign-in & security","Account status issue","Account suspended","Accruing points issues","Add account","Add AliPayHK","Add Coins.ph","Add direct debit","Add money to Play","Add Octopus","Add PayMaya","Add payment method","Apps on Chromebook missing","Apps on Chromebook not downloading","Apps on Chromebook not working","Audiobook doesn't play","Book doesn't load","Book missing pages or sections","Books using too much device storage space","Bought by mistake","Buy movies","Buy with Play balance","Can't add Kid's School Account","Can't buy Play credit at store","Can't cancel subscription","Can't connect","Can't download apps","Can't find a book in Google Play Books store","Can't find a movie in Google Play Movies","Can't find an app","Can't find book in the Books App","Can't find content","Can't find content in the Newsstand app","Can't find game in the Games App","Can't find installed PC games","Can't find Play Store","Can't find subscription","Can't fully download an Google Play Instant App","Can't join or create a family","Can't load Google Play Instant Apps","Can't purchase Play content","Can't purchase Play content on iOS","Can't read offline","Can't redeem device promotion points","Can't redeem gift card","Can't redeem Google One benefit","Can't redeem promotion points","Can't search","Can't set up budget","Can't stream movie or show","Can't verify print subscription","Can't watch offline","Cancel a pre-order","Cancel adding cash to Play balance","Cancel subscription","Cant find a movie","Card or code lost/stolen","Change app permission","Change instant app settings","Change purchase approval settings","Change your nickname","Changing payment information","Changing profile address","Check Gift About Play balance","Check on payment status","Check payment code","Check Play balance","Check Play Points status","Check point balance","Check subscription details","Close a profile","Complete My Season not working","Contacts issues","Content changed after purchase","Content defective","Content doesn't match description","Content failed to load/play","Content not downloaded","Content won't load","Copyright or trademark infringement","Customize Shelves","Defective apps or in-app purchases","Defective games","Defective hardware","Delete a family group","Delete a Play Games Profile","Delete game data for a specific game","Device freezes on startup (stuck on boot)","Device requirements","Didn't receive points from promotion","Difference between renting and buying","Don't want a purchase","Donate Play balance","Donation question","Download books","Download movies & TV episodes","Duplicate content in library","eBook scanned pages and flowing text","Edit a Play Games Profile","Editing or removing a payment method","Enable WiFi only downloads","Entertainment Space platform issue","Error message","Failed Transaction","Family or friend made purchase","Feature Request for Game Center","Find purchase details","Find recently used Google Play Instant apps","First time setup","Fix problems with Tools for Beginners","Game achievement issue","Game is missing","Game not available","Game progress not syncing","Game progress not syncing across devices","Games using too much device storage space","Games, Books, or Movies crashing after download","Games, Books, or Movies won't load after purchase and download","General issues with comic destination","General issues with sports experience","General personal data / privacy query","General Play technical issue","General questions","Gift card already redeemed","Gift card code damaged","Gift card code mistyped","Gift card not activated","Gift card refund","Gift card scam","Google app developer issue","Google Play Books crashes or won't load","Google Play Books missing from device","Google Play crashes or won't load","Google Play Games missing from device","Google Play Movies & TV crashes or won't load","Google Play Movies & TV missing from device","Google Play Newsstand crashes or won't load","Google Workspace account access","HD not supported on device","HD quality issue","How to access Google TV content","How to cast content","How to change System settings","How to check eligibility","How to check my Play Points","How to create new account","How to customize display","How to download and use Chrome player extensions","How to enable captions","How to find content in the Play Store","How to hide or archive content","How to pre-order","How to redeem a gift card","How to redeem Play Points benefits","How to reset recommendations","How to use a Google Play Instant App","How to use accessibility features","How to use audio description","How to use Customize","How to use Google Play web player or website","How to use TalkBack","How to watch on a TV","Identity verification process","Inaccurate content shown","Inactive membership","Incorrect content mapping","Ineligible to join any League","Installation issue","Issue after redeeming points","Issue downloading for offline use","Issue recording or sharing video","Issue with app or game developer","Issue with app syncing","Issue with audiobook","Issue with book syncing","Issue with Chromebook apps","Issue with content provider","Issue with downloaded book","Issue with downloaded game","Issue with game syncing","Issue with gift card country","Issue with Google Play League","Issue with Google Play Streak","Issue with instant app","Issue with Play balance","Issue with Play Games Free Trial","Issue with Play Games Profile","Issue with Play Games Sidekick","Issue with Play Pass","Issue with Play Points Status","Issue with points from promotion","Issue with read aloud","Issue with sale","Issue with season pass","Issue with subtitles or captions","Issue with Underage Payments Profile","Issues with audio","Issues with content quality","Issues with Live streaming to Youtube in Play Games app","Issues with My Videos feature in Play Games app","Issues with Players feature in Play Games app","Issues with points of Play Points program","Issues with recording videos in Play Games app","Item doesn't work","Item not delivered","Japan Specified Commercial Transactions","Kid is not able to redeem/use a Gift Card","Learn about Pixel Pass","Leave a League","Legal & Privacy","Link goes to different content","Listen to audiobooks","Manage a family group","Manage budget setting","Manage child's Google Play gift cards","Manage device storage","Manage family payment method","Manage multiple accounts","Manage Play Games progress","Manage your wishlist","Missing audiobook PDF","Modify Google Workspace MX records","Movie missing scenes","Movie or show missing from library","Movie or TV show won't play","Movie won't play from specific service provider","Movies & TV app not on Smart TVs or Roku","Play Points enrollment","Play Points error message","Play Points issue","Play Store connection issue","Play Store on Chromebook not loading","Play Store won't start","Play third party developer issue","Playback issues","Poor recommendations","Preorder issues","Preorder not delivered on time","Previously available apps missing","Previously available books missing","Previously available games missing","Pricing information","Print a book","Privacy and data","Problems with game performance","Problems with in-game purchases","Profile security","Profile status request","Promo code not working","Promo code wasn't delivered","Purchase not complete","Purchasing issues with points","Questions about compliance/regulations","Questions about Play Points device promotion","Questions about Play Points promotion","Questions about teacher approved badge","Ratings or reviews disappearing or removed","Reached device limit","Reached Play balance limit","Received wrong order","Refund individual book in bundles","Refund or transfer request","Refund policy & process","Refund request denied","Refund status","Remove account","Remove AliPayHK","Remove Coins.ph","Remove content from library","Remove direct debit","Remove Octopus","Remove PayMaya","Removed from a particular League","Rent a book","Rent a movie or show","Report incorrect content ratings","Report unknown data transfer request","Request for transaction status","Resend Gift Card","Results / rankings","Retailer did not give code","Save content to SD card","See devices using Play account","Self unenrollment","Sell your book on Play","Send Google Play your suggestions","Send review request to the team","Set up budget","Set up parental controls","Setup issues with downloaded apps","Sort book library","Spam or pop-up issues","Start a subscription","Switch accounts","Tax questions","There is no link to click on","Title not available","Transaction history","Transaction status of cash top-up","Transfer account content","Transfer Play Balance","Transfer promotion points","Turn Google Play Instant Apps on or off","Unable to share content in Family Library","Unauthorized charge","Unenroll from Play Points","Uninstall an app","Unrecognized charge","Update apps","Update payment method","Upgrade from movie rental to purchase (Refund)","Upgrade from TV show to Season Pass (Refund)","Upload personal book","Use Kid Dictionary","Use Play Books with Google Classroom","Use Play Points","Use Read and Listen","Use Skim View","Use Tap to Read","Using Family Library","Verify Payment Method","Verify your identity","View purchases","Watch from streaming apps","Watch on a TV","What is COVID-19 tracing","What is Premium Support","Where can I find the public health authority apps","Why does Exposure Notification setting pop up","Write a review","Wrong country or currency","Wrong sale price"];
 
-    /* -------------------------------------------
-   INIT
-------------------------------------------- */
-window.onload = function() {
-  document.getElementById('activeContainer').innerHTML = SKELETON_HTML;
-
-  // --- FETCH ROUTING URL FOR DETAILED ROSTER BUTTON ---
-  google.script.run.withSuccessHandler(function(url) {
-    let detailBtn = document.getElementById('detailedScheduleBtn');
-    if (detailBtn) {
-      detailBtn.href = url + '?page=schedule'; 
-    }
-  }).getWebAppUrl();
-  // ----------------------------------------------------
-
-  try {
-    google.script.run
-      .withSuccessHandler(function(result) {
-            currentUserEmail = (result.email || '').trim().toLowerCase();
-            isSME            = !!result.isSME;
-            currentUserLdap  = currentUserEmail.split('@')[0];
-            applyRoleUI();
-            loadAvatars(currentUserLdap);
-            updateProfileDrawer();
-            fetchActiveQueue();
-            fetchResolvedQueue(true);
-            fetchSchedule();
-            startAutoRefresh();
-            startSlaTick();
-          })
-          .getSessionAndRole();
-  } catch(e) { applyRoleUI(); }
-};
 
     /* ─────────────────────────────────────────
        ROLE UI
@@ -2073,7 +2047,7 @@ window.onload = function() {
                 '<span class="tag ' + slaTagClass + '" data-sla-ts="' + (c.timestamp || '') + '"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span>Waiting: ' + wait.str + '</span>' +
                 '<span class="tag tag-neutral" style="background:' + (TEAM_COLORS[c.team] ? 'rgba(0,0,0,0.05)' : '') + '">' + safeTeam + '</span>' +
                 callbackBadge +
-                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(claimLdap) + '</span>' : '') +
+                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(maskLdap(claimLdap)) + '</span>' : '') +
                 (isMine ? '<span class="tag" style="background:var(--md-sys-color-primary); color:white;"><span class="material-symbols-outlined" style="font-size:14px;">person</span> Assigned to you</span>' : '') +
               '</div>' +
             '</div>' +
@@ -2432,7 +2406,7 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
                 '<span class="material-symbols-outlined" style="font-size:18px; color:var(--md-sys-color-on-surface-variant)">' + channelIcon + '</span>' +
               '</div>' +
               '<div class="row-sub" style="font-size:13px; margin:4px 0 8px;">' +
-                'Handled by: <strong>' + safeHandledBy + '</strong> &bull; ' +
+                'Handled by: <strong>' + esc(maskLdap(safeHandledBy)) + '</strong> &bull; ' +
                 (isNaN(d.getTime()) ? '--' : d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'})) +
               '</div>' +
               '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">' + driverHtml + '</div>' +
@@ -3193,10 +3167,10 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
       });
 
       // Updated regex for X-XXXXXXXXXXXXX (e.g. 3-7225000039901)
-      // Supporting 1 digit - 12 or 13 digits
-      if (!/^\d-\d{12,13}$/.test(payload.caseId || '')) {
+      // Supporting 1 digit - exactly 13 digits
+      if (!/^\d-\d{13}$/.test(payload.caseId || '')) {
         document.getElementById('f-caseId').classList.add('error');
-        showToast('Invalid Case ID format (X-XXXXXXXXXXXXX)');
+        showToast('Invalid Case ID format. Must be X-XXXXXXXXXXXXX (13 digits after dash).');
         ok = false;
       }
 
@@ -3280,6 +3254,40 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
         '<div class="pd-stat-card" style="grid-column:span 2"><div class="pd-stat-val" style="font-size:32px">' + myCases.length + '</div><div class="pd-stat-lbl">Lifetime Cases Resolved</div></div>' +
       '</div>';
     }
+
+    /* -------------------------------------------
+       INIT (Global Scope)
+    ------------------------------------------- */
+    window.onload = function() {
+      document.getElementById('activeContainer').innerHTML = SKELETON_HTML;
+
+      // --- FETCH ROUTING URL FOR DETAILED ROSTER BUTTON ---
+      google.script.run.withSuccessHandler(function(url) {
+        let detailBtn = document.getElementById('detailedScheduleBtn');
+        if (detailBtn) {
+          detailBtn.href = url + '?page=schedule';
+        }
+      }).getWebAppUrl();
+      // ----------------------------------------------------
+
+      try {
+        google.script.run
+          .withSuccessHandler(function(result) {
+                currentUserEmail = (result.email || '').trim().toLowerCase();
+                isSME            = !!result.isSME;
+                currentUserLdap  = currentUserEmail.split('@')[0];
+                applyRoleUI();
+                loadAvatars(currentUserLdap);
+                updateProfileDrawer();
+                fetchActiveQueue();
+                fetchResolvedQueue(true);
+                fetchSchedule();
+                startAutoRefresh();
+                startSlaTick();
+              })
+              .getSessionAndRole();
+      } catch(e) { if (typeof applyRoleUI === 'function') applyRoleUI(); }
+    };
 
   </script>
 
