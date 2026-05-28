@@ -664,22 +664,26 @@ function sendClaimNotification_(caseData, smeEmail) {
     const claimedAt  = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     const submittedAt = caseData.timestamp ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
-    const detailsHtml =
-      _detailRow('Case ID', caseData.caseId) +
-      _detailRow('Symptom', caseData.symptom) +
-      _detailRow('Channel', caseData.channel) +
-      _detailRow('Team', caseData.team) +
-      _detailRow('Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true) +
-      _detailRow('Submitted', submittedAt) +
-      _detailRow('Picked up at', claimedAt) +
-      _detailRow('Handled by', smeLdap);
+    const details = [
+      ['Case ID', caseData.caseId, true],
+      ['Symptom', caseData.symptom],
+      ['Channel', caseData.channel],
+      ['Team', caseData.team],
+      ['Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true, 'Open Case'],
+      ['Submitted', submittedAt],
+      ['Picked up at', claimedAt],
+      ['Handled by', smeLdap]
+    ];
 
-    const body = _getMaterial3EmailHtml({
+    const body = _getPremiumEmailHtml({
+      type: 'blue',
       title: 'Case Picked Up',
-      message: `Hi <b>${agentLdap}</b>, your escalation has been picked up by <b>${smeLdap}</b> and is now <b style="color:#0b57d0">In Progress</b>.`,
-      detailsHtml: detailsHtml,
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseData.caseId,
-      buttonText: 'View Case',
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/check_circle/default/48px.svg',
+      badgeText: 'PICKED UP',
+      message: `Hi <b>${agentLdap}</b>, your escalation has been <span style="background-color:#fff7e0; color:#b93815; padding:2px 4px; border-radius:4px;">picked up</span> by <b>${smeLdap}</b> and is now <b style="color:#1a73e8">In Progress</b>.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📄', rows: details }
+      ],
       footerNote: 'You will receive another notification once your case has been resolved. If you have urgent updates, please contact your supervisor directly.'
     });
 
@@ -705,26 +709,28 @@ function sendResolveNotification_(caseData, smeEmail) {
     const resolvedAt  = new Date(caseData.resolutionTime).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     const submittedAt = caseData.timestamp ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
-    const detailsHtml =
-      `<div style="background-color: #e6f4ea; border-radius: 8px; padding: 16px; margin-bottom: 24px; border: 1px solid #c4eed0;">
-        <div style="font-size: 11px; font-weight: 700; color: #072711; text-transform: uppercase; margin-bottom: 8px;">Resolution Remarks</div>
-        <div style="font-size: 14px; line-height: 1.5; color: #072711; white-space: pre-wrap;">${escHtml_(caseData.remarks)}</div>
-      </div>` +
-      _detailRow('Case ID', caseData.caseId) +
-      _detailRow('Symptom', caseData.symptom) +
-      _detailRow('Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true) +
-      _detailRow('Submitted', submittedAt) +
-      _detailRow('Resolved at', resolvedAt) +
-      _detailRow('Handled by', smeLdap);
+    const details = [
+      ['Case ID', caseData.caseId],
+      ['Symptom', caseData.symptom],
+      ['Channel', caseData.channel],
+      ['Team', caseData.team],
+      ['Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true, 'Open Case'],
+      ['Submitted', submittedAt],
+      ['Resolved at', resolvedAt],
+      ['Resolved by', smeLdap]
+    ];
 
-    const body = _getMaterial3EmailHtml({
+    const body = _getPremiumEmailHtml({
+      type: 'green',
       title: 'Case Resolved',
-      headerBg: '#1e8e3e',
-      message: `Hi <b>${agentLdap}</b>, your escalation regarding Case <b>${caseData.caseId}</b> has been <b style="color:#1e8e3e">Resolved</b>.`,
-      detailsHtml: detailsHtml,
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseData.caseId,
-      buttonText: 'View Details',
-      iconUrl: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/celebration/default/48px.svg'
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/celebration/default/48px.svg',
+      badgeText: 'RESOLVED',
+      message: `Hi <b>${agentLdap}</b>, your escalation has been <b style="color:#1e8e3e">resolved</b> by <b>${smeLdap}</b>.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📄', rows: details },
+        { type: 'remarks', title: 'SME REMARKS', icon: '💬', content: caseData.remarks }
+      ],
+      footerNote: 'If you have any follow-up concerns, please contact your supervisor or submit a new escalation request.'
     });
 
     MailApp.sendEmail({
@@ -882,10 +888,33 @@ function checkSLAWarnings() {
 function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld, testMode_) {
   try {
     const subject = '⏰ Escalation Pending for 24 Hours — ' + caseId;
-    const detailsHtml = _detailRow('Case ID', caseId) + _detailRow('Submitted', submittedStr) + _detailRow('Team', team) + _detailRow('Case Link', 'https://cases.connect.corp.google.com/' + caseId, true) + _detailRow('Waiting', `<span style="color:#b93815">${hoursOld} hours</span>`);
+    const details = [
+      ['Case ID', caseId, true],
+      ['Agent', ldap],
+      ['Symptom', symptom || 'Not specified'],
+      ['Channel', channel || 'Not specified'],
+      ['Team', team],
+      ['Submitted', submittedStr],
+      ['Age', hoursOld + ' hours in queue']
+    ];
 
-    const body = _getMaterial3EmailHtml({
-      title: 'Still in Queue', headerBg: '#f29900', message: `Hi <b>${ldap}</b>, this is a friendly automated reminder that your escalation for Case <b>${caseId}</b> has been pending for over 24 hours.`, detailsHtml: detailsHtml, buttonUrl: 'https://cases.connect.corp.google.com/' + caseId, buttonText: 'View Queue', iconUrl: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/schedule/default/48px.svg'
+    const body = _getPremiumEmailHtml({
+      type: 'orange',
+      title: '24-Hour Pending Reminder',
+      subtitle: 'Your escalation is still awaiting supervisor action.',
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/schedule/default/48px.svg',
+      badgeText: '24h OLD',
+      message: `Hi <b>${ldap}</b>, this is a friendly reminder that your escalation submitted <b>${submittedStr}</b> has been in the queue for over <b>24 hours</b> and is still awaiting action from a supervisor or SME.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📋', rows: details },
+        {
+          type: 'action',
+          title: 'WHAT HAPPENS NEXT?',
+          icon: '💡',
+          color: 'blue',
+          content: `A supervisor or SME from <b>${team}</b> will <span style="background-color:#fff7e0; color:#b93815; padding:2px 4px; border-radius:4px;">pick up</span> your case shortly. If this is urgent, please reach out to your team lead directly. You will receive another notification if your case remains unresolved at the 48-hour mark.`
+        }
+      ]
     });
 
     var ccList = [];
@@ -900,11 +929,48 @@ function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
 
 function sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld, testMode_) {
   try {
-    const subject = '🚨 URGENT: SLA Breach for Case ' + caseId;
-    const detailsHtml = _detailRow('Case ID', caseId) + _detailRow('Submitted', submittedStr) + _detailRow('Team', team) + _detailRow('Case Link', 'https://cases.connect.corp.google.com/' + caseId, true) + _detailRow('Queue Time', `<span style="color:#b3261e">${hoursOld} hours</span>`);
+    const subject = '🚨 URGENT: 48-Hour SLA Breach Warning — ' + caseId;
+    const details = [
+      ['Case ID', caseId, true],
+      ['Agent', ldap],
+      ['Symptom', symptom || 'Not specified'],
+      ['Reason', reason || 'Not specified'],
+      ['Channel', channel || 'Not specified'],
+      ['Team', team],
+      ['Submitted', submittedStr],
+      ['Age', `<span style="color:#b3261e; font-weight:700;">${hoursOld} hours — SLA BREACHED</span>`]
+    ];
 
-    const body = _getMaterial3EmailHtml({
-      title: 'SLA Breach Alert', headerBg: '#b3261e', message: `Hi <b>${ldap}</b>, <b>Attention Required:</b> Escalation for Case <b>${caseId}</b> has exceeded the 48-hour threshold. Management has been notified.`, detailsHtml: detailsHtml, buttonUrl: 'https://cases.connect.corp.google.com/' + caseId, buttonText: 'Prioritize Case', iconUrl: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/error/default/48px.svg'
+    const body = _getPremiumEmailHtml({
+      type: 'red',
+      isUrgent: true,
+      title: '48-Hour SLA Breach Warning',
+      subtitle: 'This case has exceeded the 48-hour response threshold and requires immediate attention.',
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/notifications_active/default/48px.svg',
+      badgeText: '48h OLD',
+      message: `Hi <b>${ldap}</b>, your escalation submitted on <b>${submittedStr}</b> has now been pending for over <b>48 hours</b>. This exceeds the acceptable response threshold. Your team managers have been notified and this case requires <b style="color:#b3261e">immediate action</b>.`,
+      alertBanner: `⚠️ This case has been in the queue for 48 hours without resolution. Management has been notified.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '🚨', rows: details },
+        {
+          type: 'action',
+          title: 'REQUIRED ACTION',
+          icon: '⚡',
+          color: 'yellow',
+          content: `<ul style="margin:0; padding-left:20px;">
+            <li>An SME or Supervisor from <b>${team}</b> must claim and resolve this case immediately.</li>
+            <li>If the assigned team is unavailable, please escalate to your manager directly.</li>
+            <li>Update the case in the <a href="${getWebAppUrl()}" style="color:#0b57d0; text-decoration:underline;">Escalations Dashboard</a> once resolved.</li>
+          </ul>`
+        },
+        {
+          type: 'action',
+          title: 'MANAGERS NOTIFIED',
+          icon: '✅',
+          color: 'green',
+          content: 'This alert has been automatically copied to the Play Ops management team for visibility and follow-up.'
+        }
+      ]
     });
 
     var ccList = [];
@@ -916,10 +982,59 @@ function sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
   } catch(e) { console.error('sendSLA48hrEmail_ error: ' + e.message); }
 }
 
-function _getMaterial3EmailHtml(config) {
-  const headerBg = config.headerBg || '#0b57d0';
-  const iconUrl  = config.iconUrl || 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/check_circle/default/48px.svg';
-  const buttonBg = config.buttonBg || headerBg;
+function _getPremiumEmailHtml(config) {
+  const styles = {
+    red:    { head: '#d93025', bg: '#fce8e6', text: '#b3261e', badge: '#c5221f' },
+    orange: { head: '#f29900', bg: '#fff7e0', text: '#b93815', badge: '#e37400' },
+    blue:   { head: '#1a73e8', bg: '#e8f0fe', text: '#1967d2', badge: '#185abc' },
+    green:  { head: '#1e8e3e', bg: '#e6f4ea', text: '#137333', badge: '#137333' },
+    yellow: { head: '#f9ab00', bg: '#fff7e0', text: '#b93815', badge: '#f29900' }
+  };
+  const theme = styles[config.type] || styles.blue;
+  const headerSub = config.isUrgent ? 'GOOGLE PLAY · ESCALATIONS · URGENT ALERT' : 'GOOGLE PLAY · ESCALATIONS';
+
+  let blocksHtml = '';
+  (config.blocks || []).forEach(block => {
+    if (block.type === 'details') {
+      let rows = '';
+      block.rows.forEach(r => {
+        let val = r[1];
+        if (r[2]) { // isLink/isCaseId
+          if (r[3]) val = `<a href="${r[1]}" style="color:#0b57d0; text-decoration:underline; font-weight:700;">${r[3]}</a>`;
+          else val = `<a href="https://cases.connect.corp.google.com/${r[1]}" style="color:#b3261e; text-decoration:underline; font-weight:700;">${r[1]}</a>`;
+        }
+        rows += `
+          <tr style="border-bottom: 1px solid #f1f3f4;">
+            <td style="padding: 10px 0; color: #5f6368; font-size: 13px; width: 140px; vertical-align: top;">${r[0]}</td>
+            <td style="padding: 10px 0; color: #202124; font-size: 13px; font-weight: 500; vertical-align: top;">${val}</td>
+          </tr>`;
+      });
+      blocksHtml += `
+        <div style="background-color: ${theme.bg}; border-radius: 12px; padding: 24px; border-left: 6px solid ${theme.head}; margin-bottom: 24px; border: 1px solid #dadce0; border-left-width: 6px;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: ${theme.text}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px;">
+            <span style="margin-right: 8px;">${block.icon || '📄'}</span> ${block.title}
+          </div>
+          <table style="width: 100%; border-collapse: collapse;">${rows}</table>
+        </div>`;
+    } else if (block.type === 'remarks') {
+      blocksHtml += `
+        <div style="background-color: #e6f4ea; border-radius: 12px; padding: 24px; border-left: 6px solid #1e8e3e; margin-bottom: 24px; border: 1px solid #c4eed0;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: #0d652d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+            <span style="margin-right: 8px;">${block.icon || '💬'}</span> ${block.title}
+          </div>
+          <div style="font-size: 14px; line-height: 1.6; color: #072711; white-space: pre-wrap;">${escHtml_(block.content)}</div>
+        </div>`;
+    } else if (block.type === 'action') {
+      const aTheme = styles[block.color] || theme;
+      blocksHtml += `
+        <div style="background-color: ${aTheme.bg}; border-radius: 12px; padding: 24px; border-left: 6px solid ${aTheme.head}; margin-bottom: 24px; border: 1px solid #dadce0; border-left-width: 6px;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: ${aTheme.text}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+            <span style="margin-right: 8px;">${block.icon || '💡'}</span> ${block.title}
+          </div>
+          <div style="font-size: 14px; line-height: 1.6; color: #3c4043;">${block.content}</div>
+        </div>`;
+    }
+  });
 
   return `
     <!DOCTYPE html>
@@ -929,73 +1044,61 @@ function _getMaterial3EmailHtml(config) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
-        body { margin: 0; padding: 0; background-color: #f1f3f4; font-family: 'Roboto', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-        .wrapper { padding: 40px 20px; }
-        .container { max-width: 640px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15); border: 1px solid #dadce0; }
-        .header { background-color: ${headerBg}; padding: 40px; color: #ffffff; position: relative; }
-        .header-top { font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; opacity: 0.95; }
-        .header-title { font-family: 'Google Sans', sans-serif; font-size: 32px; font-weight: 500; margin: 0; }
-        .header-icon { position: absolute; right: 40px; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.25); border-radius: 12px; padding: 12px; display: flex; align-items: center; justify-content: center; }
-        .content { padding: 40px; color: #3c4043; }
-        .message { font-size: 16px; line-height: 1.6; margin-bottom: 32px; color: #3c4043; }
-        .details-box { background-color: #f8f9fa; border-radius: 8px; padding: 32px; border-left: 4px solid ${headerBg}; margin-bottom: 32px; border: 1px solid #dadce0; }
-        .details-header { font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: #5f6368; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 24px; }
-        .detail-row { display: table; width: 100%; margin-bottom: 16px; }
-        .detail-label { display: table-cell; width: 200px; font-size: 13px; color: #5f6368; vertical-align: top; }
-        .detail-value { display: table-cell; font-size: 13px; color: #202124; font-weight: 500; vertical-align: top; }
-        .detail-link { color: #0b57d0; text-decoration: none; font-weight: 500; border-bottom: 1px solid #0b57d0; }
-        .button-container { text-align: center; margin: 32px 0; }
-        .button { background-color: ${buttonBg}; color: #ffffff !important; padding: 12px 32px; border-radius: 100px; text-decoration: none; font-family: 'Google Sans', sans-serif; font-size: 14px; font-weight: 500; display: inline-block; }
-        .footer-note { font-size: 14px; color: #5f6368; line-height: 1.6; margin-top: 32px; }
-        .brand-footer { padding: 32px 40px; background-color: #ffffff; border-top: 1px solid #f1f3f4; font-size: 12px; color: #70757a; text-align: left; }
-        @media only screen and (max-width: 600px) {
-          .wrapper { padding: 0; }
-          .container { border-radius: 0; }
-          .header, .content, .brand-footer { padding: 24px; }
-          .detail-label { width: 140px; }
-        }
+        body { margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Roboto', Arial, sans-serif; }
       </style>
     </head>
-    <body>
-      <div class="wrapper">
-        <div class="container">
-          <div class="header">
-            <div class="header-top">GOOGLE PLAY • ESCALATIONS</div>
-            <h1 class="header-title">${config.title}</h1>
-            <div class="header-icon">
-              <img src="${iconUrl}" width="36" height="32" style="filter: brightness(0) invert(1);">
+    <body style="margin: 0; padding: 20px; background-color: #f8f9fa;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e0e0e0;">
+        <!-- Header -->
+        <div style="background: ${theme.head}; padding: 32px; color: #ffffff; position: relative;">
+          <div style="display: table; width: 100%;">
+            <div style="display: table-cell; vertical-align: top;">
+              <img src="https://www.gstatic.com/images/branding/product/2x/google_play_64dp.png" width="40" height="40" style="margin-bottom: 16px;">
+              <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.9;">${headerSub}</div>
+              <h1 style="font-family: 'Google Sans', sans-serif; font-size: 28px; font-weight: 700; margin: 0; line-height: 1.2;">${config.title}</h1>
+              ${config.subtitle ? `<div style="font-size: 14px; margin-top: 8px; opacity: 0.9;">${config.subtitle}</div>` : ''}
             </div>
-          </div>
-          <div class="content">
-            <div class="message">${config.message}</div>
-            <div class="details-box">
-              <div class="details-header">CASE DETAILS</div>
-              ${config.detailsHtml}
-            </div>
-            ${config.buttonUrl ? `
-              <div class="button-container">
-                <a href="${config.buttonUrl}" class="button">${config.buttonText || 'View Case'}</a>
+            <div style="display: table-cell; vertical-align: middle; width: 100px; text-align: right;">
+              <div style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 12px; text-align: center;">
+                <img src="${config.badgeIcon}" width="32" height="32" style="filter: brightness(0) invert(1); margin-bottom: 4px;">
+                <div style="font-size: 10px; font-weight: 700; font-family: 'Google Sans', sans-serif;">${config.badgeText}</div>
               </div>
-            ` : ''}
-            ${config.footerNote ? `<div class="footer-note">${config.footerNote}</div>` : ''}
-          </div>
-          <div class="brand-footer">
-            This is an automated message from the Google Play Escalations Dashboard. Please do not reply to this email.
+            </div>
           </div>
         </div>
+
+        ${config.alertBanner ? `
+          <div style="background-color: #fce8e6; padding: 16px; text-align: center; color: #b3261e; font-size: 14px; font-weight: 700; border-bottom: 1px solid #f8d7da;">
+            ${config.alertBanner}
+          </div>
+        ` : ''}
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+          <div style="font-size: 16px; line-height: 1.6; color: #3c4043; margin-bottom: 32px;">
+            ${config.message}
+          </div>
+
+          ${blocksHtml}
+
+          ${config.footerNote ? `<div style="font-size: 14px; color: #5f6368; line-height: 1.6; border-top: 1px solid #f1f3f4; padding-top: 24px;">${config.footerNote}</div>` : ''}
+        </div>
+
+        <!-- Brand Footer -->
+        <div style="background-color: #f1f3f4; padding: 24px 32px; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between;">
+           <div style="display: flex; align-items: center; font-size: 12px; color: #70757a;">
+             <img src="https://www.gstatic.com/images/branding/product/2x/google_play_64dp.png" width="20" height="20" style="margin-right: 8px; opacity: 0.6;">
+             Google Play Escalations - Automated Notification - Do not reply
+           </div>
+           ${config.isUrgent ? `<div style="color: #b3261e; font-size: 11px; font-weight: 700; font-family: 'Google Sans', sans-serif;">SLA BREACH - 48h</div>` : ''}
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #9aa0a6;">
+        This is an automated message from the Google Play Escalations Dashboard.
       </div>
     </body>
     </html>
   `;
-}
-
-function _detailRow(label, value, isLink) {
-  const valHtml = isLink ? `<a href="${value}" class="detail-link" target="_blank">Open Case</a>` : value;
-  return `
-    <div class="detail-row">
-      <div class="detail-label">${label}</div>
-      <div class="detail-value">${valHtml}</div>
-    </div>`;
 }
 
 function setupSLATrigger() {
