@@ -63,42 +63,45 @@
     }
 
     body.dark-mode {
-      /* Apple Pastel Palette - Dark */
+      /* Deep OLED Black Palette */
       --md-sys-color-primary: #0A84FF;
       --md-sys-color-on-primary: #ffffff;
       --md-sys-color-primary-container: #003261;
       --md-sys-color-on-primary-container: #D1E9FF;
       --md-sys-color-secondary: #5E5CE6;
       --md-sys-color-on-secondary: #ffffff;
-      --md-sys-color-secondary-container: #211F74;
+      --md-sys-color-secondary-container: #1C1C1E;
       --md-sys-color-on-secondary-container: #E5E4FF;
       --md-sys-color-tertiary: #FF9F0A;
       --md-sys-color-on-tertiary: #000000;
-      --md-sys-color-tertiary-container: #4D3000;
+      --md-sys-color-tertiary-container: #2C1800;
       --md-sys-color-on-tertiary-container: #FFD48F;
       --md-sys-color-error: #FF453A;
       --md-sys-color-on-error: #ffffff;
       --md-sys-color-error-container: #4D0B09;
       --md-sys-color-on-error-container: #FFDADA;
-      --md-sys-color-outline: #636366;
-      --md-sys-color-outline-variant: #38383A;
+      --md-sys-color-outline: #48484A;
+      --md-sys-color-outline-variant: #2C2C2E;
       --md-sys-color-background: #000000;
-      --md-sys-color-on-background: #F2F2F7;
-      --md-sys-color-surface: #1C1C1E;
-      --md-sys-color-on-surface: #F2F2F7;
-      --md-sys-color-surface-variant: #2C2C2E;
+      --md-sys-color-on-background: #ffffff;
+      --md-sys-color-surface: #000000;
+      --md-sys-color-on-surface: #ffffff;
+      --md-sys-color-surface-variant: #1C1C1E;
       --md-sys-color-on-surface-variant: #AEAEB2;
       --md-sys-color-surface-container-low: #000000;
-      --md-sys-color-surface-container: #1C1C1E;
-      --md-sys-color-surface-container-high: #2C2C2E;
-      --md-sys-color-surface-container-highest: #3A3A3C;
+      --md-sys-color-surface-container: #000000;
+      --md-sys-color-surface-container-high: #1C1C1E;
+      --md-sys-color-surface-container-highest: #2C2C2E;
 
       --bg-main: #000000;
-      --surface: #1C1C1E;
-      --text-main: #F2F2F7;
+      --surface: #000000;
+      --text-main: #ffffff;
       --text-muted: #8E8E93;
-      --border: #38383A;
-      --hover-bg: rgba(10, 132, 255, 0.1);
+      --border: #2C2C2E;
+      --hover-bg: rgba(255, 255, 255, 0.05);
+
+      --card-shadow: 0 4px 16px rgba(0,0,0,0.8);
+      --card-shadow-hover: 0 8px 32px rgba(0,0,0,1);
     }
 
     /* ─────────────────────────────────────────
@@ -443,7 +446,7 @@
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       overflow: hidden;
       border: 1px solid var(--md-sys-color-outline-variant);
-      margin-bottom: 4px;
+      margin-bottom: 12px;
     }
 
     /* M3 States */
@@ -490,6 +493,25 @@
     .tag.sla-tag-safe{background:var(--md-sys-color-surface-variant);color:var(--md-sys-color-on-surface-variant);}
     .tag.sla-tag-warn{background:#FEF7E0;color:#B06000;}
     .tag.sla-tag-critical{background:var(--md-sys-color-error);color:var(--md-sys-color-on-error);}
+
+    /* SLA Progress Bar */
+    .sla-progress-container {
+      height: 4px;
+      background: var(--md-sys-color-surface-variant);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    .sla-progress-bar {
+      height: 100%;
+      width: 0%;
+      transition: width 1s linear, background-color 0.3s ease;
+    }
+    .sla-bar-safe { background: var(--g-green); }
+    .sla-bar-warn { background: var(--g-yellow); }
+    .sla-bar-critical { background: var(--g-red); }
+
     .tag.blue{background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);}
     .tag.orange{background:var(--md-sys-color-tertiary-container);color:var(--md-sys-color-on-tertiary-container);}
     .tag.callback{background:#FFD54F;color:#000;font-weight:700;border:1px solid #FBC02D}
@@ -994,7 +1016,7 @@
   ══════════════════════════════════ -->
   <div class="sidebar">
     <div class="sb-header">
-      <img src="https://www.gstatic.com/images/branding/product/1x/google_play_512dp.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
+      <img src="https://www.gstatic.com/images/branding/product/2x/google_play_64dp.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
       <div class="sb-title-wrap">
         <span class="sb-title">Supervisor Cases Dashboard</span>
         <span class="sb-subtitle">Google Play</span>
@@ -1037,38 +1059,6 @@
       </div>
     </div>
 
-    <div class="filter-section" id="sidebarChannelFilters">
-      <div class="filter-header" onclick="toggleFilter('sidebarChannelFilters')">
-        <span class="filter-title">CHANNEL</span>
-        <span class="material-symbols-outlined filter-toggle-icon">expand_more</span>
-      </div>
-      <div class="filter-options">
-        <label class="filter-label chk-chat">
-          <input type="checkbox" checked onchange="toggleChannelFilter('Chat', this)">
-          <span class="checkmark"></span> Chat
-        </label>
-        <label class="filter-label chk-email">
-          <input type="checkbox" checked onchange="toggleChannelFilter('Email', this)">
-          <span class="checkmark"></span> Email
-        </label>
-        <label class="filter-label chk-phone">
-          <input type="checkbox" checked onchange="toggleChannelFilter('Phone', this)">
-          <span class="checkmark"></span> Phone
-        </label>
-      </div>
-    </div>
-
-    <!-- ── SIDEBAR SCHEDULE WIDGET ── -->
-    <div class="sb-schedule-widget">
-      <div class="sb-schedule-header">
-        <span class="sb-schedule-title"> On Shift Support </span>
-        <span class="sb-schedule-link" onclick="switchTab('schedule')">View all →</span>
-      </div>
-      <div id="sbScheduleList">
-        <div style="padding:8px 10px;font-size:12px;color:var(--text-muted)">Loading…</div>
-      </div>
-    </div>
-
   </div>
 
   <!-- ══════════════════════════════════
@@ -1108,6 +1098,23 @@
       </div>
     </div>
 
+    <!-- ── FILTER STRIP ── -->
+    <div class="filter-strip" id="filterStrip">
+      <div style="display:flex; align-items:center; gap:8px; border-right:1px solid var(--md-sys-color-outline-variant); padding-right:16px; margin-right:8px;">
+        <div class="filter-chip active" id="chip-Chat" onclick="toggleChannelChip('Chat')">
+          <span class="material-symbols-outlined chip-icon">chat</span> Chat
+        </div>
+        <div class="filter-chip active" id="chip-Email" onclick="toggleChannelChip('Email')">
+          <span class="material-symbols-outlined chip-icon">mail</span> Email
+        </div>
+        <div class="filter-chip active" id="chip-Phone" onclick="toggleChannelChip('Phone')">
+          <span class="material-symbols-outlined chip-icon">call</span> Phone
+        </div>
+      </div>
+      <div id="dynamicTeamChips" style="display:flex; gap:8px;">
+        <!-- JS Populated -->
+      </div>
+    </div>
 
     <div class="main-content">
 
@@ -1630,24 +1637,37 @@
 
         var isClaimed = card.classList.contains('case-dimmed');
 
+        // Progress Bar Update (48h scale = 2880 mins)
+        var pct = Math.min(100, (obj.mins / 2880) * 100);
+        var bar = card.querySelector('.sla-progress-bar');
+        var barCls = 'sla-bar-safe';
+
         if (obj.mins > 2880) { // 48 Hours
           cls = 'sla-tag-critical';
+          barCls = 'sla-bar-critical';
           if (!isClaimed) {
             card.classList.remove('case-elevated', 'case-outlined-warn');
             card.classList.add('case-outlined-critical');
           }
         } else if (obj.mins > 1440) { // 24 Hours
           cls = 'sla-tag-warn';
+          barCls = 'sla-bar-warn';
           if (!isClaimed) {
             card.classList.remove('case-elevated', 'case-outlined-critical');
             card.classList.add('case-outlined-warn');
           }
         } else {
           cls = 'sla-tag-safe';
+          barCls = 'sla-bar-safe';
           if (!isClaimed) {
             card.classList.remove('case-outlined-warn', 'case-outlined-critical');
             card.classList.add('case-elevated');
           }
+        }
+
+        if (bar) {
+          bar.className = 'sla-progress-bar ' + barCls;
+          bar.style.width = pct + '%';
         }
 
         el.className = 'tag ' + cls;
@@ -1721,41 +1741,46 @@
       document.getElementById('chip-phone').classList.toggle('active', activeChannels.has('Phone'));
     }
 
-    function renderSidebarFilters() {
-      var teamOptions = document.getElementById('sidebarTeamOptions');
+    function renderTeamChips() {
+      var container = document.getElementById('dynamicTeamChips');
+      if (!container) return;
       var teams = {};
+      // Collect teams from both active and resolved for thoroughness
       rawActiveCases.forEach(function(c) { teams[c.team] = (teams[c.team] || 0) + 1; });
 
-      var html = '<label class="filter-label">' +
-                 '<input type="checkbox" ' + (activeTeams.size === 0 ? 'checked' : '') + ' onchange="setAllTeams(this.checked)">' +
-                 '<span class="checkmark"></span> All Teams</label>';
+      var html = '<div class="filter-chip ' + (activeTeams.size === 0 ? 'active' : '') + '" onclick="setAllTeams()">All Teams</div>';
 
       Object.keys(teams).sort().forEach(function(team) {
         var isActive = activeTeams.has(team);
-        html += '<label class="filter-label">' +
-                '<input type="checkbox" ' + (isActive ? 'checked' : '') + ' onchange="toggleTeamFilter(\'' + team + '\', this)">' +
-                '<span class="checkmark"></span> ' + team + ' <span style="opacity:0.6; margin-left:auto;">' + teams[team] + '</span></label>';
+        html += '<div class="filter-chip ' + (isActive ? 'active' : '') + '" onclick="toggleTeamFilter(\'' + team + '\')">' +
+                team + ' <span style="opacity:0.6; margin-left:6px; font-size:11px;">' + teams[team] + '</span></div>';
       });
-      teamOptions.innerHTML = html;
+      container.innerHTML = html;
     }
 
-    function toggleTeamFilter(team, cb) {
+    function toggleTeamFilter(team) {
       if (activeTeams.has(team)) activeTeams.delete(team);
       else activeTeams.add(team);
       applyFilters();
     }
 
-    function setAllTeams(val) {
+    function setAllTeams() {
       activeTeams.clear();
       applyFilters();
     }
 
-    function toggleChannelFilter(chan, cb) {
+    function toggleChannelChip(chan) {
+      var chip = document.getElementById('chip-' + chan);
       if (activeChannels.has(chan)) {
-        if (activeChannels.size > 1) activeChannels.delete(chan);
-        else { cb.checked = true; showToast("At least one channel must be selected"); }
+        if (activeChannels.size > 1) {
+          activeChannels.delete(chan);
+          chip.classList.remove('active');
+        } else {
+          showToast("At least one channel must be selected");
+        }
       } else {
         activeChannels.add(chan);
+        chip.classList.add('active');
       }
       applyFilters();
     }
@@ -1830,7 +1855,7 @@
 
     function applyFilters(isLoadMore) {
       updateBadges();
-      renderSidebarFilters();
+      renderTeamChips();
       if (currentTab === 'active')   renderActiveUI(getFilteredSet(rawActiveCases));
       else if (currentTab === 'resolved') {
         if (!isLoadMore) { resolvedPage = 1; }
@@ -2026,14 +2051,22 @@
 
         var viewerHtml = '';
         if (c.viewers && c.viewers.length > 0) {
-          viewerHtml = '<div style="display:flex; align-items:center; gap:4px; margin-top:8px;">' +
-            '<span class="material-symbols-outlined" style="font-size:14px; color:var(--md-sys-color-primary)">visibility</span>' +
-            '<div style="display:flex; -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);">';
-          c.viewers.forEach(function(v) {
-            viewerHtml += getMomaImgClass(v, 'row-avatar', 20);
+          viewerHtml = '<div style="display:flex; align-items:center; gap:8px; margin-top:8px; background:var(--md-sys-color-primary-container); width:fit-content; padding:4px 12px; border-radius:12px; border:1px solid var(--md-sys-color-outline-variant);">' +
+            '<span class="material-symbols-outlined" style="font-size:16px; color:var(--md-sys-color-primary); font-variation-settings:\'FILL\' 1">visibility</span>' +
+            '<div style="display:flex; align-items:center; gap:4px;">' +
+            '<div style="display:flex; margin-right:4px;">';
+          c.viewers.forEach(function(v, i) {
+            var offset = i === 0 ? 0 : -8;
+            viewerHtml += '<img src="https://moma-teams-photos.corp.google.com/photos/' + esc(v) + '?sz=32" style="width:20px; height:20px; border-radius:50%; border:2px solid var(--md-sys-color-surface); margin-left:' + offset + 'px;" onerror="this.src=\'https://www.gstatic.com/images/branding/product/1x/avatar_square_blue_512dp.png\'">';
           });
-          viewerHtml += '</div><span style="font-size:10px; font-weight:700; color:var(--md-sys-color-primary); text-transform:uppercase;">' + c.viewers.length + ' SME viewing</span></div>';
+          viewerHtml += '</div><span style="font-size:11px; font-weight:700; color:var(--md-sys-color-on-primary-container); letter-spacing:0.3px;">' + (c.viewers.length === 1 ? c.viewers[0] + ' is looking' : c.viewers.length + ' SMEs viewing') + '</span></div></div>';
         }
+
+        // SLA Progress calculation
+        var slaPct = Math.min(100, (wait.mins / 2880) * 100);
+        var slaBarClass = 'sla-bar-safe';
+        if (wait.mins > 2880) slaBarClass = 'sla-bar-critical';
+        else if (wait.mins > 1440) slaBarClass = 'sla-bar-warn';
 
         html += '<div class="case-row ' + cardStyleClass + '" id="card-' + rowIdx + '" data-rowidx="' + rowIdx + '">' +
           '<div class="row-main" onclick="toggleCard(this)">' +
@@ -2053,6 +2086,7 @@
                 (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(claimLdap) + '</span>' : '') +
                 (isMine ? '<span class="tag" style="background:var(--md-sys-color-primary); color:white;"><span class="material-symbols-outlined" style="font-size:14px;">person</span> Assigned to you</span>' : '') +
               '</div>' +
+              '<div class="sla-progress-container"><div class="sla-progress-bar ' + slaBarClass + '" style="width:' + slaPct + '%"></div></div>' +
             '</div>' +
             '<div class="row-meta"><a href="https://cases.connect.corp.google.com/' + safeCaseId + '" target="_blank" class="case-link" style="font-size:14px; font-weight:700;" onclick="event.stopPropagation()">' + safeCaseId + '</a></div>' +
             '<span class="material-symbols-outlined expand-icon" style="margin-left:16px;">expand_more</span>' +

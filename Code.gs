@@ -216,26 +216,6 @@ function pingCase(caseId) {
   cache.put(key, JSON.stringify(viewers), 125);
 }
 
-/**
- * Pings a case to indicate active viewing (SME Collision Detection).
- */
-function pingCase(caseId) {
-  const email = Session.getActiveUser().getEmail();
-  if (!isUserSME_(email)) return;
-  const ldap = email.split('@')[0].toLowerCase();
-
-  const cache = CacheService.getScriptCache();
-  const key = 'viewers_' + caseId;
-  let viewers = JSON.parse(cache.get(key) || '[]');
-
-  // Remove expired (older than 2 mins) or duplicate
-  const now = Date.now();
-  viewers = viewers.filter(v => v.ldap !== ldap && (now - v.ts) < 120000);
-  viewers.push({ ldap: ldap, ts: now });
-
-  cache.put(key, JSON.stringify(viewers), 125); // Cache for slightly more than 2 mins
-}
-
 function getOpenCases() {
   _checkRateLimit('getOpenCases');
   const ss = SpreadsheetApp.openById(MASTER_DB_ID);
