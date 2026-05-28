@@ -92,38 +92,6 @@ function _ensureSchema() {
 // SupervisorList sheet name
 const SHEET_SUPERS = 'SupervisorList';
 
-/* ═══════════════════════════════════════════════════════════════════
-   COLUMN MAP — Open Sup Cases (1-based)
-   A=1  Timestamp
-   B=2  Email (submitter)
-   C=3  LDAP
-   D=4  Case ID
-   E=5  Symptom/Issue
-   F=6  Detailed Customer Issue
-   G=7  Reason for Escalation
-   H=8  Channel
-   I=9  Team
-   J=10 Case ID Link
-   K=11 Date          ← formula-populated, DO NOT write
-   L=12 Time          ← formula-populated, DO NOT write
-   M=13 Time spent before taken  (resolutionTime written on resolve)
-   N=14 Handled by
-   O=15 SME Remarks
-   P=16 Claimed At    ← for TAT fix (B1), written by claimCase
-   ═══════════════════════════════════════════════════════════════════
-
-   COLUMN MAP — SupervisorList (1-based)
-   A=1  Email Address
-   B=2  LDAP
-   C=3  Role  (Supervisor | SME)
-   D=4+ Date columns  (header = "Apr-21", values = shift start time | "OFF" | "VL")
-   ═══════════════════════════════════════════════════════════════════ */
-
-
-/* ═══════════════════════════════════════════════════════════════════
-   RBAC CORE
-   ═══════════════════════════════════════════════════════════════════ */
-
 function getSessionAndRole() {
   var email = '';
   try { email = Session.getActiveUser().getEmail(); } catch (e) {}
@@ -171,11 +139,6 @@ function requireSME_() {
   }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   ROUTING & SESSION
-   ═══════════════════════════════════════════════════════════════════ */
-
 function doGet(e) {
   _ensureSchema();
   if (e && e.parameter && e.parameter.page === 'schedule') {
@@ -195,11 +158,6 @@ function getSessionEmail() {
   try { return Session.getActiveUser().getEmail(); }
   catch (e) { return 'User Email Unavailable'; }
 }
-
-
-/* ═══════════════════════════════════════════════════════════════════
-   SUBMIT
-   ═══════════════════════════════════════════════════════════════════ */
 
 function submitEscalation(formData) {
   _checkRateLimit('submitEscalation');
@@ -221,7 +179,6 @@ function submitEscalation(formData) {
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
       const allData = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
-      // COL_LDAP=2(C), COL_CASEID=3(D), COL_SYMPTOM=4(E) → 0-based: 2,3,4
       const isDuplicate = allData.some(row =>
         String(row[2]).toLowerCase().trim() === formData.ldap.trim().toLowerCase() &&
         String(row[3]).trim()               === formData.caseId.trim()             &&
@@ -243,14 +200,21 @@ _log('SUBMIT', submitterEmail, 'Case submitted', -1, formData.caseId, formData.l
   } catch (err) { return { success: false, message: 'Server Error: ' + err.message }; }
 }
 
+function pingCase(caseId) {
+  const email = Session.getActiveUser().getEmail();
+  if (!isUserSME_(email)) return;
+  const ldap = email.split('@')[0].toLowerCase();
 
-/* ═══════════════════════════════════════════════════════════════════
-   READ FUNCTIONS (available to all roles)
-   ═══════════════════════════════════════════════════════════════════ */
+  const cache = CacheService.getScriptCache();
+  const key = 'viewers_' + caseId;
+  let viewers = JSON.parse(cache.get(key) || '[]');
 
-/* ═══════════════════════════════════════════════════════════════════
-   READ FUNCTIONS (Upgraded for Enterprise Speed & Caching)
-   ═══════════════════════════════════════════════════════════════════ */
+  const now = Date.now();
+  viewers = viewers.filter(v => v.ldap !== ldap && (now - v.ts) < 120000);
+  viewers.push({ ldap: ldap, ts: now });
+
+  cache.put(key, JSON.stringify(viewers), 125);
+}
 
 /**
  * Pings a case to indicate active viewing (SME Collision Detection).
@@ -284,13 +248,12 @@ function getOpenCases() {
   const myEmail = Session.getActiveUser().getEmail().toLowerCase().trim();
   const myLdap = myEmail.split('@')[0];
 
-  // BUILD INDEX: rowIdx → case object (skip resolved rows immediately)
-  const INDEX_REMARKS = 14;  // col O (0-based)
-  const INDEX_HANDLED = 13;  // col N (0-based)
+  const INDEX_REMARKS = 14;
+  const INDEX_HANDLED = 13;
 
   data.forEach((row, index) => {
     const remarks   = String(row[INDEX_REMARKS] || '').trim();
-    if (remarks !== '') return; // indexed skip — resolved
+    if (remarks !== '') return;
 
     const handledBy = String(row[INDEX_HANDLED] || '').trim();
     const claimLdap = handledBy.toLowerCase().split('@')[0];
@@ -333,15 +296,12 @@ function getResolvedCases() {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
-  // Memory Chunking: Only pull the last 3000 rows for metrics/history
-  // This keeps the app lightning fast without breaking memory limits!
   const rowLimit = Math.min(lastRow - 1, 3000);
   const startRow = Math.max(2, lastRow - rowLimit + 1);
 
   const data = sheet.getRange(startRow, 1, lastRow - startRow + 1, 17).getValues();
   const resolvedCases = [];
 
-  // Loop backwards to get newest first
   for (let i = data.length - 1; i >= 0; i--) {
     const row = data[i];
     const remarks = String(row[14] || '').trim();
@@ -371,19 +331,6 @@ function getResolvedCases() {
   return resolvedCases;
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   SCHEDULE TRACKER
-   Reads SupervisorList and returns today + next 2 days for each person.
-   Date headers start at col D (col index 4, 1-based).
-   Returns:
-   [{ ldap, email, role, days: [{ date, label, value, status }] }]
-   status: 'on'  = has a shift time
-           'off' = "OFF"
-           'vl'  = "VL"
-           'unknown' = no column found for that date
-   ═══════════════════════════════════════════════════════════════════ */
-
 function getSchedule() {
   _checkRateLimit('getSchedule');
   try {
@@ -394,15 +341,11 @@ function getSchedule() {
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
     if (lastRow < 2 || lastCol < 4) return [];
-    Logger.log('lastCol detected: ' + lastCol); // temporary debug line
 
-    // Read header row
     const headerRange = sheet.getRange(1, 4, 1, lastCol - 3).getValues()[0];
-    // Read all data rows
     const dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues();
 
-    // Build the 3 target dates: today, tomorrow, day after
-    const PHT_OFFSET_MS = 8 * 60 * 60 * 1000; // UTC+8
+    const PHT_OFFSET_MS = 8 * 60 * 60 * 1000;
     const nowPHT        = new Date(Date.now() + PHT_OFFSET_MS);
 
     const targetDates = [0, 1, 2].map(function(offset) {
@@ -411,19 +354,16 @@ function getSchedule() {
       return d;
     });
 
-    // Build a label matcher: "Apr-21" format
     function makeDateLabel(d) {
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       return months[d.getUTCMonth()] + '-' + d.getUTCDate();
     }
 
-    // Find column indices for each target date
-      const targetColIndices = targetDates.map(function(d) {
+    const targetColIndices = targetDates.map(function(d) {
       const lbl = makeDateLabel(d);
       
       const idx = headerRange.findIndex(function(h) {
         if (h instanceof Date) {
-          // Convert sheet date to PHT to compare correctly
           const hPHT = new Date(h.getTime() + PHT_OFFSET_MS);
           const hMonth = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][hPHT.getUTCMonth()];
           const hDate = hPHT.getUTCDate();
@@ -435,7 +375,6 @@ function getSchedule() {
       return { date: d, label: lbl, colIdx: idx };
     });
 
-    // Build display label like "Mon Apr 21"
     const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     function makeDisplayLabel(d, offset) {
       if (offset === 0) return 'Today';
@@ -443,7 +382,6 @@ function getSchedule() {
       return DAY_NAMES[d.getUTCDay()] + ' ' + makeDateLabel(d).replace('-', ' ');
     }
 
-    // Build result
     const result = [];
     dataRange.forEach(function(row) {
       const email = String(row[0] || '').trim();
@@ -454,7 +392,6 @@ function getSchedule() {
       const days = targetColIndices.map(function(tc, offset) {
         var rawVal = '';
         if (tc.colIdx >= 0) {
-          // +3 offset: cols A,B,C are indices 0,1,2; col D starts at index 3
           rawVal = String(row[tc.colIdx + 3] || '').trim();
         }
 
@@ -470,13 +407,10 @@ function getSchedule() {
           status = 'vl';
           displayValue = 'On Leave';
         } else {
-          // --- THE NEW 9-HOUR LIVE MATH ---
-          status = 'scheduled'; // Default to a gray badge for inactive shifts
+          status = 'scheduled';
           displayValue = rawVal;
 
-          if (offset === 0) { // Only do real-time math for "Today"
-            
-            // Helper to turn string "1:00:00 AM" into a rigid UTC timestamp
+          if (offset === 0) {
             function getShift(baseDate, timeStr) {
               var m = timeStr.trim().match(/^(\d+):(\d+):(\d+)\s+(AM|PM)$/i);
               if (!m) return null;
@@ -489,22 +423,19 @@ function getSchedule() {
               return { start: start, end: new Date(start.getTime() + (9 * 60 * 60 * 1000)) };
             }
 
-            // 1. Check Today's shift window
             var shiftToday = getShift(tc.date, rawVal);
-            
-            // 2. Check Yesterday's shift window (catches night shifts crossing midnight!)
             var yestVal = tc.colIdx > 0 ? String(row[tc.colIdx + 3 - 1] || '').trim() : '';
-            var yestDate = new Date(tc.date.getTime() - 86400000); // Minus 24 hours
+            var yestDate = new Date(tc.date.getTime() - 86400000);
             var shiftYest = getShift(yestDate, yestVal);
 
             var isActive = false;
             if (shiftToday && nowPHT >= shiftToday.start && nowPHT < shiftToday.end) isActive = true;
             if (shiftYest && nowPHT >= shiftYest.start && nowPHT < shiftYest.end) isActive = true;
 
-            if (isActive) status = 'on'; // If they are currently active, turn it Green!
+            if (isActive) status = 'on';
 
           } else {
-            status = 'on'; // Tomorrow and the Day After default to green
+            status = 'on';
           }
         }
 
@@ -527,24 +458,12 @@ function getSchedule() {
   }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   METRICS SNAPSHOT
-   Called hourly by a time-driven trigger.
-   Writes one row to the "Metrics" sheet with current queue stats.
-   ═══════════════════════════════════════════════════════════════════ */
-
-/**
- * Writes a snapshot row to the Metrics sheet.
- * Safe to run manually from the Apps Script editor to test.
- */
 function recordMetricsSnapshot() {
   try {
     const ss          = SpreadsheetApp.openById(MASTER_DB_ID);
     const openSheet   = ss.getSheetByName('Open Sup Cases');
     if (!openSheet) return;
 
-    // ── Get or create Metrics sheet ──
     let metricsSheet = ss.getSheetByName('Metrics');
     if (!metricsSheet) {
       metricsSheet = ss.insertSheet('Metrics');
@@ -560,11 +479,8 @@ function recordMetricsSnapshot() {
         .setFontColor('#FFFFFF')
         .setHorizontalAlignment('center');
       metricsSheet.setFrozenRows(1);
-      metricsSheet.setColumnWidth(1, 180);
-      metricsSheet.setColumnWidth(7, 280);
     }
 
-    // ── Read all Open Sup Cases rows ──
     const lastRow = openSheet.getLastRow();
     if (lastRow < 3) {
       metricsSheet.appendRow([new Date(), 0, 0, 0, 0, '', '—', '—', '—']);
@@ -573,7 +489,6 @@ function recordMetricsSnapshot() {
 
     const data = openSheet.getRange(2, 1, lastRow - 1, 17).getValues();
 
-    // PHT midnight for "today"
     const PHT_OFFSET_MS = 8 * 60 * 60 * 1000;
     const nowUTC        = Date.now();
     const nowPHT        = new Date(nowUTC + PHT_OFFSET_MS);
@@ -592,38 +507,28 @@ function recordMetricsSnapshot() {
     const smes       = {};
 
     data.forEach(function(row) {
-      const handledBy    = String(row[13] || '').trim(); // col N
-      const remarks      = String(row[14] || '').trim(); // col O
-      const claimedAt    = row[15];                      // col P
-      const resolutionTs = row[12];                      // col M
+      const handledBy    = String(row[13] || '').trim();
+      const remarks      = String(row[14] || '').trim();
+      const claimedAt    = row[15];
+      const resolutionTs = row[12];
 
       if (remarks === '') {
-        // Open case
         openCount++;
         if (handledBy !== '') claimedCount++;
       } else {
-        // Resolved case — only count if resolved today (PHT)
         if (resolutionTs) {
           const resDate = new Date(resolutionTs);
           if (!isNaN(resDate.getTime()) && resDate.getTime() >= midnightPHT.getTime()) {
             resolvedToday++;
-
-            // TAT: claimedAt → resolutionTs
             const startTs = claimedAt ? new Date(claimedAt) : new Date(row[0]);
             if (!isNaN(startTs.getTime())) {
               const diff = (resDate.getTime() - startTs.getTime()) / 60000;
               if (diff > 0) { tatTotalMins += diff; tatCount++; }
             }
-
-            // Symptom tally
             const sym = String(row[4] || '').trim();
             if (sym) symptoms[sym] = (symptoms[sym] || 0) + 1;
-
-            // Channel tally
             const chan = String(row[7] || '').trim();
             if (chan) channels[chan] = (channels[chan] || 0) + 1;
-
-            // SME tally
             const smeLdap = handledBy ? handledBy.split('@')[0].toLowerCase() : '';
             if (smeLdap) smes[smeLdap] = (smes[smeLdap] || 0) + 1;
             const rType = String(row[16] || '').trim();
@@ -650,40 +555,18 @@ function recordMetricsSnapshot() {
   }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   TRIGGER SETUP
-   Run setupHourlyTrigger() ONCE from the Apps Script editor.
-   It installs a time-driven trigger that calls recordMetricsSnapshot
-   every hour. Running it again is safe — it deletes the old trigger
-   first to avoid duplicates.
-   ═══════════════════════════════════════════════════════════════════ */
-
-/**
- * Run this ONCE from the Apps Script editor to install the hourly trigger.
- * Safe to re-run — removes any existing trigger for recordMetricsSnapshot first.
- */
 function setupHourlyTrigger() {
-  // Remove existing triggers for this function to avoid duplicates
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
     if (trigger.getHandlerFunction() === 'recordMetricsSnapshot') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
-  // Install a new every-hour trigger
   ScriptApp.newTrigger('recordMetricsSnapshot')
     .timeBased()
     .everyHours(1)
     .create();
-
-  Logger.log('✅ Hourly trigger for recordMetricsSnapshot installed successfully.');
 }
-
-
-/* ═══════════════════════════════════════════════════════════════════
-   WRITE FUNCTIONS (SME / Supervisor only)
-   ═══════════════════════════════════════════════════════════════════ */
 
 function claimCase(rowIdx) {
   _checkRateLimit('claimCase');
@@ -694,8 +577,8 @@ function claimCase(rowIdx) {
     const smeEmail  = Session.getActiveUser().getEmail();
     const claimedAt = new Date();
 
-    sheet.getRange(rowIdx, 16).setValue(claimedAt); // col 16 (P) = Claimed At
-    sheet.getRange(rowIdx, 14).setValue(smeEmail);  // <-- PUT THIS BACK HERE
+    sheet.getRange(rowIdx, 16).setValue(claimedAt);
+    sheet.getRange(rowIdx, 14).setValue(smeEmail);
 
     const row = sheet.getRange(rowIdx, 1, 1, 16).getValues()[0];
     const caseData = {
@@ -712,9 +595,7 @@ function claimCase(rowIdx) {
     };
 
     _log('CLAIM', smeEmail, 'Case claimed', rowIdx, caseData.caseId, caseData.ldap);
-
     sendClaimNotification_(caseData, smeEmail);
-
     return { success: true, message: 'Case claimed.', email: smeEmail };
   } catch (e) { return { success: false, message: e.message }; }
 }
@@ -782,7 +663,7 @@ function resolveCase(rowIdx, remarks, resolutionType) {
     };
 
     sheet.getRange(rowIdx, 13).setValue(resolutionTime);
-    sheet.getRange(rowIdx, 15).setValue(remarks);      // ← ADD THIS between 650 and 651
+    sheet.getRange(rowIdx, 15).setValue(remarks);
     sheet.getRange(rowIdx, 17).setValue(resolutionType || '');
     _log('RESOLVE', smeEmail, 'Case resolved | Driver: ' + resolutionType, rowIdx, caseData.caseId, remarks.substring(0, 80));
 
@@ -793,58 +674,37 @@ function resolveCase(rowIdx, remarks, resolutionType) {
   } catch (e) { return { success: false, message: e.message }; }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   EMAIL NOTIFICATIONS
-   ═══════════════════════════════════════════════════════════════════ */
-
 function sendClaimNotification_(caseData, smeEmail) {
   try {
     if (!caseData.submitter) return;
 
     const smeLdap    = smeEmail.split('@')[0];
-    const maskedSme  = maskLdap_(smeLdap);
-    const subject    = '✅ Case ' + caseData.caseId + ' has been picked up';
+    const agentLdap  = caseData.ldap;
+    const subject    = '✅ Your escalation has been picked up — Case ' + caseData.caseId;
     const claimedAt  = new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     const submittedAt = caseData.timestamp ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
-    const details = `
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Case ID</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${caseData.caseId}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Symptom</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${caseData.symptom}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Channel</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${caseData.channel}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Team</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${caseData.team}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Submitted</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${submittedAt}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Picked Up At</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${claimedAt}</div>
-      </div>
-      <div style="margin-bottom: 0; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Handled By</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${maskedSme}</div>
-      </div>
-    `;
+    const details = [
+      ['Case ID', caseData.caseId, true],
+      ['Symptom', caseData.symptom],
+      ['Channel', caseData.channel],
+      ['Team', caseData.team],
+      ['Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true, 'Open Case'],
+      ['Submitted', submittedAt],
+      ['Picked up at', claimedAt],
+      ['Handled by', smeLdap]
+    ];
 
-    const body = _getMaterial3EmailHtml({
+    const body = _getPremiumEmailHtml({
+      type: 'blue',
       title: 'Case Picked Up',
-      message: `Hi <b>${maskLdap_(caseData.ldap)}</b>, your escalation has been picked up by <b>${maskedSme}</b> and is now <b style="color:#0b57d0">In Progress</b>.`,
-      details: details,
-      buttonText: 'View Case',
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseData.caseId
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/check_circle/default/48px.svg',
+      badgeText: 'PICKED UP',
+      message: `Hi <b>${agentLdap}</b>, your escalation has been <span style="background-color:#fff7e0; color:#b93815; padding:2px 4px; border-radius:4px;">picked up</span> by <b>${smeLdap}</b> and is now <b style="color:#1a73e8">In Progress</b>.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📄', rows: details }
+      ],
+      footerNote: 'You will receive another notification once your case has been resolved. If you have urgent updates, please contact your supervisor directly.'
     });
 
     MailApp.sendEmail({
@@ -856,9 +716,7 @@ function sendClaimNotification_(caseData, smeEmail) {
       replyTo : 'play-escalations@google.com'
     });
 
-  } catch (e) {
-    console.error('sendClaimNotification_ error: ' + e.message);
-  }
+  } catch (e) { console.error('sendClaimNotification_ error: ' + e.message); }
 }
 
 function sendResolveNotification_(caseData, smeEmail) {
@@ -866,45 +724,33 @@ function sendResolveNotification_(caseData, smeEmail) {
     if (!caseData.submitter) return;
 
     const smeLdap     = smeEmail.split('@')[0];
-    const maskedSme   = maskLdap_(smeLdap);
-    const subject     = '🎉 Case ' + caseData.caseId + ' has been resolved';
+    const agentLdap   = caseData.ldap;
+    const subject     = '🎉 Your escalation has been resolved — Case ' + caseData.caseId;
     const resolvedAt  = new Date(caseData.resolutionTime).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
     const submittedAt = caseData.timestamp ? new Date(caseData.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
-    const details = `
-      <div style="background-color: #e6f4ea; border-radius: 12px; padding: 16px; margin-bottom: 24px; border: 1px solid #c4eed0;">
-        <div style="font-size: 12px; font-weight: 700; color: #072711; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Resolution Remarks</div>
-        <div style="font-size: 14px; line-height: 1.5; color: #072711; white-space: pre-wrap;">${escHtml_(caseData.remarks)}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Case ID</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${caseData.caseId}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Symptom</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${caseData.symptom}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Submitted</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${submittedAt}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Resolved At</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${resolvedAt}</div>
-      </div>
-      <div style="margin-bottom: 0; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Handled By</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${maskedSme}</div>
-      </div>
-    `;
+    const details = [
+      ['Case ID', caseData.caseId],
+      ['Symptom', caseData.symptom],
+      ['Channel', caseData.channel],
+      ['Team', caseData.team],
+      ['Case Link', 'https://cases.connect.corp.google.com/' + caseData.caseId, true, 'Open Case'],
+      ['Submitted', submittedAt],
+      ['Resolved at', resolvedAt],
+      ['Resolved by', smeLdap]
+    ];
 
-    const body = _getMaterial3EmailHtml({
+    const body = _getPremiumEmailHtml({
+      type: 'green',
       title: 'Case Resolved',
-      headerBg: '#1e8e3e',
-      message: `Hi <b>${maskLdap_(caseData.ldap)}</b>, your escalation regarding Case <b>${caseData.caseId}</b> has been <b style="color:#1e8e3e">Resolved</b>.`,
-      details: details,
-      buttonText: 'View Details',
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseData.caseId
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/celebration/default/48px.svg',
+      badgeText: 'RESOLVED',
+      message: `Hi <b>${agentLdap}</b>, your escalation has been <b style="color:#1e8e3e">resolved</b> by <b>${smeLdap}</b>.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📄', rows: details },
+        { type: 'remarks', title: 'SME REMARKS', icon: '💬', content: caseData.remarks }
+      ],
+      footerNote: 'If you have any follow-up concerns, please contact your supervisor or submit a new escalation request.'
     });
 
     MailApp.sendEmail({
@@ -915,27 +761,13 @@ function sendResolveNotification_(caseData, smeEmail) {
       noReply : true,
       replyTo : 'play-escalations@google.com'
     });
-
-  } catch (e) {
-    console.error('sendResolveNotification_ error: ' + e.message);
-  }
+  } catch (e) { console.error('sendResolveNotification_ error: ' + e.message); }
 }
-
 
 function escHtml_(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   UTILITIES
-   ═══════════════════════════════════════════════════════════════════ */
-
-// ── AUDIT LOG HELPERS ─────────────────────────────────────────────
 function _actorEmail() {
   try { return Session.getActiveUser().getEmail() || 'unknown'; }
   catch(e) { return 'unknown'; }
@@ -948,33 +780,14 @@ function _log(action, actor, detail, targetRow, caseId, extra) {
 
     if (!logSheet) {
       logSheet = ss.insertSheet('Audit Log');
-      logSheet.appendRow([
-        'Timestamp','Actor Email','Actor LDAP','Action',
-        'Target Row','Case ID','Detail','Extra'
-      ]);
-      logSheet.getRange(1, 1, 1, 8)
-        .setFontWeight('bold')
-        .setBackground('#1A73E8')
-        .setFontColor('#FFFFFF');
+      logSheet.appendRow(['Timestamp','Actor Email','Actor LDAP','Action','Target Row','Case ID','Detail','Extra']);
+      logSheet.getRange(1, 1, 1, 8).setFontWeight('bold').setBackground('#1A73E8').setFontColor('#FFFFFF');
       logSheet.setFrozenRows(1);
-      logSheet.setColumnWidth(1, 180);
-      logSheet.setColumnWidth(7, 320);
     }
 
     const actorLdap = String(actor || '').split('@')[0];
-    logSheet.appendRow([
-      new Date(),
-      actor      || '',
-      actorLdap  || '',
-      action     || '',
-      targetRow  != null ? targetRow : '',
-      caseId     || '',
-      detail     || '',
-      extra      || ''
-    ]);
-  } catch(e) {
-    console.error('_log failed: ' + e.message);
-  }
+    logSheet.appendRow([new Date(), actor || '', actorLdap || '', action || '', targetRow != null ? targetRow : '', caseId || '', detail || '', extra || '']);
+  } catch(e) { console.error('_log failed: ' + e.message); }
 }
 
 function hideRows() {
@@ -984,9 +797,7 @@ function hideRows() {
   if (lastRow < 3) return;
   const values = sheet.getRange(3, 15, lastRow - 2, 1).getValues();
   for (let i = 0; i < values.length; i++) {
-    if (values[i][0] !== "" && values[i][0] !== null) {
-      sheet.hideRows(3 + i);
-    }
+    if (values[i][0] !== "" && values[i][0] !== null) { sheet.hideRows(3 + i); }
   }
 }
 
@@ -1010,7 +821,6 @@ function archiveOldCases() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   let rowsToDelete = [];
-
   for (let i = data.length - 1; i >= 0; i--) {
     const resolutionTime = data[i][12];
     if (resolutionTime && new Date(resolutionTime) < thirtyDaysAgo) {
@@ -1018,49 +828,21 @@ function archiveOldCases() {
       rowsToDelete.push(i + 3);
     }
   }
-
   rowsToDelete.forEach(rowIdx => sourceSheet.deleteRow(rowIdx));
 }
-function getWebAppUrl() {
-  return ScriptApp.getService().getUrl();
-}
-function testEmail() {
-  MailApp.sendEmail({
-    to: 'stevenjosephc@google.com',
-    subject: 'Test',
-    body: 'Email works!'
-  });
-}
-/* ═══════════════════════════════════════════════════════════════════
-   SLA WARNING EMAILS
-   Runs hourly via trigger. Sends a 24hr reminder and a 48hr urgent
-   warning for any open case that has not yet been resolved.
-═══════════════════════════════════════════════════════════════════ */
+
+function getWebAppUrl() { return ScriptApp.getService().getUrl(); }
 
 var TEAM_SUPERVISOR_MAP = {
-  'Team Steven': 'stevenjosephc',
-  'Team Gerry':  'gerrymae',
-  'Team Khent':  'khent',
-  'Team James':  'jamessevilla',
-  'Team Denden': 'bernardboy',
-  'Team Jim':    'jadoptante',
-  'Team Al':     'acaluang',
-  'Team Faye':   'fajirnah',
-  'Team Mel':    'tapalla',
-  'Team Mary':   'marineth'
+  'Team Steven': 'stevenjosephc', 'Team Gerry': 'gerrymae', 'Team Khent': 'khent',
+  'Team James': 'jamessevilla', 'Team Denden': 'bernardboy', 'Team Jim': 'jadoptante',
+  'Team Al': 'acaluang', 'Team Faye': 'fajirnah', 'Team Mel': 'tapalla', 'Team Mary': 'marineth'
 };
 
 var TEAM_SME_MAP = {
-  'Team Steven': ['sheenamae'],
-  'Team Gerry':  ['caval'],
-  'Team Khent':  ['criseldaa'],
-  'Team James':  ['acemile'],
-  'Team Denden': ['jgarlet'],
-  'Team Jim':    ['glendajoe'],
-  'Team Al':     ['elagarto'],
-  'Team Faye':   ['neljhon', 'mquirol'],
-  'Team Mel':    ['fykeivan', 'mabubay'],
-  'Team Mary':   ['fykeivan']
+  'Team Steven': ['sheenamae'], 'Team Gerry': ['caval'], 'Team Khent': ['criseldaa'],
+  'Team James': ['acemile'], 'Team Denden': ['jgarlet'], 'Team Jim': ['glendajoe'],
+  'Team Al': ['elagarto'], 'Team Faye': ['neljhon', 'mquirol'], 'Team Mel': ['fykeivan', 'mabubay'], 'Team Mary': ['fykeivan']
 };
 
 var SLA_CC_48HR = ['deanmark@google.com', 'joliveros@google.com', 'jmontrias@google.com'];
@@ -1074,112 +856,85 @@ function checkSLAWarnings() {
     const lastRow = sheet.getLastRow();
     if (lastRow < 3) return;
 
-    // Read cols A–S (1–19)
     const data    = sheet.getRange(3, 1, lastRow - 2, 19).getValues();
     const now     = new Date();
     const MS_24HR = 24 * 60 * 60 * 1000;
     const MS_48HR = 48 * 60 * 60 * 1000;
 
-    // Col indices (0-based)
-    const COL_TIMESTAMP   = 0;   // A
-    const COL_LDAP        = 2;   // C
-    const COL_CASEID      = 3;   // D
-    const COL_SYMPTOM     = 4;   // E
-    const COL_REASON      = 6;   // G
-    const COL_CHANNEL     = 7;   // H
-    const COL_TEAM        = 8;   // I
-    const COL_REMARKS     = 14;  // O
-    const COL_WARN24      = 17;  // R
-    const COL_WARN48      = 18;  // S
-
     data.forEach(function(row, i) {
-      const remarks   = String(row[COL_REMARKS] || '').trim();
-      if (remarks !== '') return; // already resolved, skip
+      const remarks   = String(row[14] || '').trim();
+      if (remarks !== '') return;
 
-      const timestamp = row[COL_TIMESTAMP];
+      const timestamp = row[0];
       if (!timestamp) return;
 
       const submitted = new Date(timestamp);
       if (isNaN(submitted.getTime())) return;
 
       const ageMs       = now.getTime() - submitted.getTime();
-      const warn24Sent  = row[COL_WARN24] === true || String(row[COL_WARN24]).toUpperCase() === 'TRUE';
-      const warn48Sent  = row[COL_WARN48] === true || String(row[COL_WARN48]).toUpperCase() === 'TRUE';
+      const warn24Sent  = row[17] === true || String(row[17]).toUpperCase() === 'TRUE';
+      const warn48Sent  = row[18] === true || String(row[18]).toUpperCase() === 'TRUE';
 
-      const ldap        = String(row[COL_LDAP]    || '').trim();
-      const caseId      = String(row[COL_CASEID]  || '').trim();
-      const symptom     = String(row[COL_SYMPTOM] || '').trim();
-      const reason      = String(row[COL_REASON]  || '').trim();
-      const channel     = String(row[COL_CHANNEL] || '').trim();
-      const team        = String(row[COL_TEAM]    || '').trim();
-      const sheetRow    = i + 3; // actual sheet row number
+      const ldap        = String(row[2]    || '').trim();
+      const caseId      = String(row[3]  || '').trim();
+      const team        = String(row[8]    || '').trim();
+      const sheetRow    = i + 3;
 
       const agentEmail  = ldap + '@google.com';
       const supLdap     = TEAM_SUPERVISOR_MAP[team] || '';
       const supEmail    = supLdap ? supLdap + '@google.com' : '';
       const smeLdaps    = TEAM_SME_MAP[team] || [];
       const smeEmails   = smeLdaps.map(function(s) { return s + '@google.com'; });
-      const submittedStr = submitted.toLocaleString('en-US', {
-        timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short'
-      });
+      const submittedStr = submitted.toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
       const hoursOld    = Math.floor(ageMs / (1000 * 60 * 60));
 
-      // ── 48HR WARNING (check first so it doesn't double-send 24hr) ──
       if (ageMs >= MS_48HR && !warn48Sent) {
-        sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld);
-        sheet.getRange(sheetRow, COL_WARN24 + 1).setValue(true); // mark 24 too
-        sheet.getRange(sheetRow, COL_WARN48 + 1).setValue(true);
-        Logger.log('[SLA 48hr] ' + caseId + ' | ' + ldap);
-        _log('SLA_48HR', 'system', 'SLA 48hr warning sent', sheetRow, caseId, ldap); // <-- INSERTED HERE (Line 1147)
+        sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, '', '', '', team, submittedStr, hoursOld);
+        sheet.getRange(sheetRow, 18).setValue(true);
+        sheet.getRange(sheetRow, 19).setValue(true);
+        _log('SLA_48HR', 'system', 'SLA 48hr warning sent', sheetRow, caseId, ldap);
         return;
       }
 
-      // ── 24HR WARNING ──
       if (ageMs >= MS_24HR && !warn24Sent) {
-        sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld);
-        sheet.getRange(sheetRow, COL_WARN24 + 1).setValue(true);
-        _log('SLA_24HR', 'system', 'SLA 24hr warning sent', sheetRow, caseId, ldap); // <-- INSERTED HERE (Line 1155)
+        sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, '', '', '', team, submittedStr, hoursOld);
+        sheet.getRange(sheetRow, 18).setValue(true);
+        _log('SLA_24HR', 'system', 'SLA 24hr warning sent', sheetRow, caseId, ldap);
       }
     });
-
-  } catch(e) {
-    console.error('checkSLAWarnings error: ' + e.message);
-  }
+  } catch(e) { console.error('checkSLAWarnings error: ' + e.message); }
 }
 
-/* ─────────────────────────────────────────
-   24HR EMAIL — Friendly Reminder
-───────────────────────────────────────── */
 function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld, testMode_) {
   try {
     const subject = '⏰ Escalation Pending for 24 Hours — ' + caseId;
+    const details = [
+      ['Case ID', caseId, true],
+      ['Agent', ldap],
+      ['Symptom', symptom || 'Not specified'],
+      ['Channel', channel || 'Not specified'],
+      ['Team', team],
+      ['Submitted', submittedStr],
+      ['Age', hoursOld + ' hours in queue']
+    ];
 
-    const details = `
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Case ID</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${caseId}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Submitted</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${submittedStr}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Team</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${team}</div>
-      </div>
-      <div style="margin-bottom: 0; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Waiting</div>
-        <div style="display: table-cell; font-size: 13px; color: #b93815; text-align: right; font-weight: 700;">${hoursOld} hours</div>
-      </div>
-    `;
-
-    const body = _getMaterial3EmailHtml({
-      title: 'Still in Queue',
-      headerBg: '#f29900',
-      message: `Hi <b>${maskLdap_(ldap)}</b>, this is a friendly automated reminder that your escalation for Case <b>${caseId}</b> has been pending for over 24 hours.`,
-      details: details,
-      buttonText: 'View Queue',
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseId
+    const body = _getPremiumEmailHtml({
+      type: 'orange',
+      title: '24-Hour Pending Reminder',
+      subtitle: 'Your escalation is still awaiting supervisor action.',
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/schedule/default/48px.svg',
+      badgeText: '24h OLD',
+      message: `Hi <b>${ldap}</b>, this is a friendly reminder that your escalation submitted <b>${submittedStr}</b> has been in the queue for over <b>24 hours</b> and is still awaiting action from a supervisor or SME.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '📋', rows: details },
+        {
+          type: 'action',
+          title: 'WHAT HAPPENS NEXT?',
+          icon: '💡',
+          color: 'blue',
+          content: `A supervisor or SME from <b>${team}</b> will <span style="background-color:#fff7e0; color:#b93815; padding:2px 4px; border-radius:4px;">pick up</span> your case shortly. If this is urgent, please reach out to your team lead directly. You will receive another notification if your case remains unresolved at the 48-hour mark.`
+        }
+      ]
     });
 
     var ccList = [];
@@ -1188,94 +943,118 @@ function sendSLA24hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, sympto
       smeEmails.forEach(function(e) { if (e) ccList.push(e); });
     }
 
-    MailApp.sendEmail({
-      to      : agentEmail,
-      cc      : ccList.filter(Boolean).join(','),
-      subject : subject,
-      htmlBody: body,
-      name    : 'Google Play Escalations',
-      noReply : true,
-      replyTo : 'play-escalations@google.com'
-    });
-
-  } catch(e) {
-    console.error('sendSLA24hrEmail_ error: ' + e.message);
-  }
+    MailApp.sendEmail({ to: agentEmail, cc: ccList.filter(Boolean).join(','), subject: subject, htmlBody: body, name: 'Google Play Escalations', noReply: true, replyTo: 'play-escalations@google.com' });
+  } catch(e) { console.error('sendSLA24hrEmail_ error: ' + e.message); }
 }
 
-/* ─────────────────────────────────────────
-   48HR EMAIL — Urgent Final Warning
-───────────────────────────────────────── */
 function sendSLA48hrEmail_(agentEmail, supEmail, smeEmails, caseId, ldap, symptom, reason, channel, team, submittedStr, hoursOld, testMode_) {
   try {
-    const subject = '🚨 URGENT: SLA Breach for Case ' + caseId;
+    const subject = '🚨 URGENT: 48-Hour SLA Breach Warning — ' + caseId;
+    const details = [
+      ['Case ID', caseId, true],
+      ['Agent', ldap],
+      ['Symptom', symptom || 'Not specified'],
+      ['Reason', reason || 'Not specified'],
+      ['Channel', channel || 'Not specified'],
+      ['Team', team],
+      ['Submitted', submittedStr],
+      ['Age', `<span style="color:#b3261e; font-weight:700;">${hoursOld} hours — SLA BREACHED</span>`]
+    ];
 
-    const details = `
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Case ID</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right; font-weight: 700;">${caseId}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Submitted</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${submittedStr}</div>
-      </div>
-      <div style="margin-bottom: 12px; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Team</div>
-        <div style="display: table-cell; font-size: 13px; color: #1f1f1f; text-align: right;">${team}</div>
-      </div>
-      <div style="margin-bottom: 0; display: table; width: 100%;">
-        <div style="display: table-cell; width: 40%; font-size: 13px; color: #444746; font-weight: 500;">Queue Time</div>
-        <div style="display: table-cell; font-size: 13px; color: #b3261e; text-align: right; font-weight: 700;">${hoursOld} hours</div>
-      </div>
-    `;
-
-    const body = _getMaterial3EmailHtml({
-      title: 'SLA Breach Alert',
-      headerBg: '#b3261e',
-      message: `Hi <b>${maskLdap_(ldap)}</b>, <b>Attention Required:</b> Escalation for Case <b>${caseId}</b> has exceeded the 48-hour threshold. Management has been notified.`,
-      details: details,
-      buttonText: 'Prioritize Case',
-      buttonUrl: 'https://cases.connect.corp.google.com/' + caseId
+    const body = _getPremiumEmailHtml({
+      type: 'red',
+      isUrgent: true,
+      title: '48-Hour SLA Breach Warning',
+      subtitle: 'This case has exceeded the 48-hour response threshold and requires immediate attention.',
+      badgeIcon: 'https://fonts.gstatic.com/s/i/short-term/release/googlesymbols/notifications_active/default/48px.svg',
+      badgeText: '48h OLD',
+      message: `Hi <b>${ldap}</b>, your escalation submitted on <b>${submittedStr}</b> has now been pending for over <b>48 hours</b>. This exceeds the acceptable response threshold. Your team managers have been notified and this case requires <b style="color:#b3261e">immediate action</b>.`,
+      alertBanner: `⚠️ This case has been in the queue for 48 hours without resolution. Management has been notified.`,
+      blocks: [
+        { type: 'details', title: 'CASE DETAILS', icon: '🚨', rows: details },
+        {
+          type: 'action',
+          title: 'REQUIRED ACTION',
+          icon: '⚡',
+          color: 'yellow',
+          content: `<ul style="margin:0; padding-left:20px;">
+            <li>An SME or Supervisor from <b>${team}</b> must claim and resolve this case immediately.</li>
+            <li>If the assigned team is unavailable, please escalate to your manager directly.</li>
+            <li>Update the case in the <a href="${getWebAppUrl()}" style="color:#0b57d0; text-decoration:underline;">Escalations Dashboard</a> once resolved.</li>
+          </ul>`
+        },
+        {
+          type: 'action',
+          title: 'MANAGERS NOTIFIED',
+          icon: '✅',
+          color: 'green',
+          content: 'This alert has been automatically copied to the Play Ops management team for visibility and follow-up.'
+        }
+      ]
     });
 
     var ccList = [];
     if (supEmail) ccList.push(supEmail);
     smeEmails.forEach(function(e) { if (e) ccList.push(e); });
-    if (!testMode_) {
-      SLA_CC_48HR.forEach(function(e) { ccList.push(e); });
+    if (!testMode_) { SLA_CC_48HR.forEach(function(e) { ccList.push(e); }); }
+
+    MailApp.sendEmail({ to: agentEmail, cc: ccList.filter(Boolean).join(','), subject: subject, htmlBody: body, name: 'Google Play Escalations', noReply: true, replyTo: 'play-escalations@google.com' });
+  } catch(e) { console.error('sendSLA48hrEmail_ error: ' + e.message); }
+}
+
+function _getPremiumEmailHtml(config) {
+  const styles = {
+    red:    { head: '#d93025', bg: '#fce8e6', text: '#b3261e', badge: '#c5221f' },
+    orange: { head: '#f29900', bg: '#fff7e0', text: '#b93815', badge: '#e37400' },
+    blue:   { head: '#1a73e8', bg: '#e8f0fe', text: '#1967d2', badge: '#185abc' },
+    green:  { head: '#1e8e3e', bg: '#e6f4ea', text: '#137333', badge: '#137333' },
+    yellow: { head: '#f9ab00', bg: '#fff7e0', text: '#b93815', badge: '#f29900' }
+  };
+  const theme = styles[config.type] || styles.blue;
+  const headerSub = config.isUrgent ? 'GOOGLE PLAY · ESCALATIONS · URGENT ALERT' : 'GOOGLE PLAY · ESCALATIONS';
+
+  let blocksHtml = '';
+  (config.blocks || []).forEach(block => {
+    if (block.type === 'details') {
+      let rows = '';
+      block.rows.forEach(r => {
+        let val = r[1];
+        if (r[2]) { // isLink/isCaseId
+          if (r[3]) val = `<a href="${r[1]}" style="color:#0b57d0; text-decoration:underline; font-weight:700;">${r[3]}</a>`;
+          else val = `<a href="https://cases.connect.corp.google.com/${r[1]}" style="color:#b3261e; text-decoration:underline; font-weight:700;">${r[1]}</a>`;
+        }
+        rows += `
+          <tr style="border-bottom: 1px solid #f1f3f4;">
+            <td style="padding: 10px 0; color: #5f6368; font-size: 13px; width: 140px; vertical-align: top;">${r[0]}</td>
+            <td style="padding: 10px 0; color: #202124; font-size: 13px; font-weight: 500; vertical-align: top;">${val}</td>
+          </tr>`;
+      });
+      blocksHtml += `
+        <div style="background-color: ${theme.bg}; border-radius: 12px; padding: 24px; border-left: 6px solid ${theme.head}; margin-bottom: 24px; border: 1px solid #dadce0; border-left-width: 6px;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: ${theme.text}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px;">
+            <span style="margin-right: 8px;">${block.icon || '📄'}</span> ${block.title}
+          </div>
+          <table style="width: 100%; border-collapse: collapse;">${rows}</table>
+        </div>`;
+    } else if (block.type === 'remarks') {
+      blocksHtml += `
+        <div style="background-color: #e6f4ea; border-radius: 12px; padding: 24px; border-left: 6px solid #1e8e3e; margin-bottom: 24px; border: 1px solid #c4eed0;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: #0d652d; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+            <span style="margin-right: 8px;">${block.icon || '💬'}</span> ${block.title}
+          </div>
+          <div style="font-size: 14px; line-height: 1.6; color: #072711; white-space: pre-wrap;">${escHtml_(block.content)}</div>
+        </div>`;
+    } else if (block.type === 'action') {
+      const aTheme = styles[block.color] || theme;
+      blocksHtml += `
+        <div style="background-color: ${aTheme.bg}; border-radius: 12px; padding: 24px; border-left: 6px solid ${aTheme.head}; margin-bottom: 24px; border: 1px solid #dadce0; border-left-width: 6px;">
+          <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; color: ${aTheme.text}; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">
+            <span style="margin-right: 8px;">${block.icon || '💡'}</span> ${block.title}
+          </div>
+          <div style="font-size: 14px; line-height: 1.6; color: #3c4043;">${block.content}</div>
+        </div>`;
     }
-
-    MailApp.sendEmail({
-      to      : agentEmail,
-      cc      : ccList.filter(Boolean).join(','),
-      subject : subject,
-      htmlBody: body,
-      name    : 'Google Play Escalations',
-      noReply : true,
-      replyTo : 'play-escalations@google.com'
-    });
-
-  } catch(e) {
-    console.error('sendSLA48hrEmail_ error: ' + e.message);
-  }
-}
-
-/**
- * Consistent identity masking for privacy across the system.
- */
-function maskLdap_(ldap) {
-  if (!ldap) return '—';
-  const s = String(ldap).split('@')[0].toLowerCase().trim();
-  if (s.length <= 2) return s;
-  // Professional masking: first letter + *** + last letter
-  return s[0] + '***' + s.slice(-1);
-}
-
-/**
- * Shared Material 3 Email Template Generator
- */
-function _getMaterial3EmailHtml(config) {
-  const headerBg = config.headerBg || '#0b57d0'; // Default Google Blue
+  });
 
   return `
     <!DOCTYPE html>
@@ -1285,155 +1064,66 @@ function _getMaterial3EmailHtml(config) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap');
-        body { margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Roboto', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
-        .wrapper { padding: 40px 10px; }
-        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 24px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e0e0e0; }
-        .header { background-color: ${headerBg}; padding: 32px; color: #ffffff; position: relative; }
-        .header-logo { margin-bottom: 16px; }
-        .header-title { font-family: 'Google Sans', sans-serif; font-size: 28px; font-weight: 700; margin: 0; letter-spacing: -0.5px; }
-        .content { padding: 32px; color: #1f1f1f; }
-        .message { font-size: 16px; line-height: 1.5; margin-bottom: 32px; color: #444746; }
-        .details-card { background-color: #f3f6fc; border-radius: 16px; padding: 24px; margin-bottom: 32px; }
-        .button-container { text-align: center; margin-bottom: 16px; }
-        .button { background-color: #0b57d0; color: #ffffff !important; padding: 12px 24px; border-radius: 100px; text-decoration: none; font-family: 'Google Sans', sans-serif; font-size: 14px; font-weight: 500; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.3); }
-        .footer { padding: 32px; border-top: 1px solid #e0e0e0; background-color: #f8f9fa; text-align: center; }
-        .footer-text { font-size: 12px; color: #444746; line-height: 1.5; margin-bottom: 8px; }
-        .footer-brand { font-family: 'Google Sans', sans-serif; font-size: 14px; font-weight: 700; color: #1f1f1f; margin-top: 16px; }
-        @media only screen and (max-width: 600px) {
-          .wrapper { padding: 0; }
-          .container { border-radius: 0; border: none; }
-        }
+        body { margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Roboto', Arial, sans-serif; }
       </style>
     </head>
-    <body>
-      <div class="wrapper">
-        <div class="container">
-          <div class="header">
-            <div class="header-logo">
-              <img src="https://www.gstatic.com/images/branding/product/2x/google_play_48dp.png" width="40" height="40" alt="Google Play">
+    <body style="margin: 0; padding: 20px; background-color: #f8f9fa;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e0e0e0;">
+        <!-- Header -->
+        <div style="background: ${theme.head}; padding: 32px; color: #ffffff; position: relative;">
+          <div style="display: table; width: 100%;">
+            <div style="display: table-cell; vertical-align: top;">
+              <img src="https://www.gstatic.com/images/branding/product/2x/google_play_64dp.png" width="40" height="40" style="margin-bottom: 16px;">
+              <div style="font-family: 'Google Sans', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: 0.9;">${headerSub}</div>
+              <h1 style="font-family: 'Google Sans', sans-serif; font-size: 28px; font-weight: 700; margin: 0; line-height: 1.2;">${config.title}</h1>
+              ${config.subtitle ? `<div style="font-size: 14px; margin-top: 8px; opacity: 0.9;">${config.subtitle}</div>` : ''}
             </div>
-            <h1 class="header-title">${config.title}</h1>
-          </div>
-          <div class="content">
-            <div class="message">${config.message}</div>
-            <div class="details-card">${config.details}</div>
-            <div class="button-container">
-              <a href="${config.buttonUrl}" class="button">${config.buttonText}</a>
+            <div style="display: table-cell; vertical-align: middle; width: 100px; text-align: right;">
+              <div style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 12px; padding: 12px; text-align: center;">
+                <img src="${config.badgeIcon}" width="32" height="32" style="filter: brightness(0) invert(1); margin-bottom: 4px;">
+                <div style="font-size: 10px; font-weight: 700; font-family: 'Google Sans', sans-serif;">${config.badgeText}</div>
+              </div>
             </div>
-          </div>
-          <div class="footer">
-            <div class="footer-text">This is an automated operational message from Google Play Support.</div>
-            <div class="footer-text">Replies to this email address are not monitored.</div>
-            <div class="footer-brand">Google Play Escalations</div>
           </div>
         </div>
+
+        ${config.alertBanner ? `
+          <div style="background-color: #fce8e6; padding: 16px; text-align: center; color: #b3261e; font-size: 14px; font-weight: 700; border-bottom: 1px solid #f8d7da;">
+            ${config.alertBanner}
+          </div>
+        ` : ''}
+
+        <!-- Content -->
+        <div style="padding: 32px;">
+          <div style="font-size: 16px; line-height: 1.6; color: #3c4043; margin-bottom: 32px;">
+            ${config.message}
+          </div>
+
+          ${blocksHtml}
+
+          ${config.footerNote ? `<div style="font-size: 14px; color: #5f6368; line-height: 1.6; border-top: 1px solid #f1f3f4; padding-top: 24px;">${config.footerNote}</div>` : ''}
+        </div>
+
+        <!-- Brand Footer -->
+        <div style="background-color: #f1f3f4; padding: 24px 32px; border-top: 1px solid #e0e0e0; display: flex; align-items: center; justify-content: space-between;">
+           <div style="display: flex; align-items: center; font-size: 12px; color: #70757a;">
+             <img src="https://www.gstatic.com/images/branding/product/2x/google_play_64dp.png" width="20" height="20" style="margin-right: 8px; opacity: 0.6;">
+             Google Play Escalations - Automated Notification - Do not reply
+           </div>
+           ${config.isUrgent ? `<div style="color: #b3261e; font-size: 11px; font-weight: 700; font-family: 'Google Sans', sans-serif;">SLA BREACH - 48h</div>` : ''}
+        </div>
+      </div>
+      <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #9aa0a6;">
+        This is an automated message from the Google Play Escalations Dashboard.
       </div>
     </body>
     </html>
   `;
 }
 
-
-/* ─────────────────────────────────────────
-   TRIGGER SETUP — Run once from editor
-───────────────────────────────────────── */
 function setupSLATrigger() {
   ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'checkSLAWarnings') {
-      ScriptApp.deleteTrigger(trigger);
-    }
+    if (trigger.getHandlerFunction() === 'checkSLAWarnings') { ScriptApp.deleteTrigger(trigger); }
   });
-
-  ScriptApp.newTrigger('checkSLAWarnings')
-    .timeBased()
-    .everyHours(1)
-    .create();
-
-  Logger.log('✅ SLA Warning trigger installed successfully.');
-}
-function testSLAEmails() {
-  var ME          = 'stevenjosephc@google.com';
-  var caseId      = '4-9048000040554';
-  var ldap        = 'testldap';
-  var symptom     = 'Can\'t redeem gift card';
-  var reason      = 'Customer is requesting supervisor intervention.';
-  var channel     = 'Chat';
-  var team        = 'Team Steven';
-  var submittedStr = new Date().toLocaleString('en-US', {
-    timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short'
-  });
-
-  // Route ALL recipients to just you — no one else gets anything
-  sendSLA24hrEmail_(ME, '', [], caseId, ldap, symptom, reason, channel, team, submittedStr, 24, true);
-  sendSLA48hrEmail_(ME, '', [], caseId, ldap, symptom, reason, channel, team, submittedStr, 48, true);
-
-  Logger.log('✅ Test emails sent only to ' + ME);
-}
-function initSLAColumns() {
-  const ss    = SpreadsheetApp.openById(MASTER_DB_ID);
-  const sheet = ss.getSheetByName('Open Sup Cases');
-  if (!sheet) return;
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 3) return;
-
-  const data = sheet.getRange(3, 1, lastRow - 2, 19).getValues();
-  const now  = new Date();
-  const MS_24HR = 24 * 60 * 60 * 1000;
-  const MS_48HR = 48 * 60 * 60 * 1000;
-
-  let marked24 = 0, marked48 = 0;
-
-  data.forEach(function(row, i) {
-    const remarks  = String(row[14] || '').trim(); // col O
-    if (remarks !== '') return; // already resolved, skip
-
-    const timestamp = row[0]; // col A
-    if (!timestamp) return;
-
-    const submitted = new Date(timestamp);
-    if (isNaN(submitted.getTime())) return;
-
-    const ageMs   = now.getTime() - submitted.getTime();
-    const sheetRow = i + 3;
-
-    if (ageMs >= MS_48HR) {
-      sheet.getRange(sheetRow, 18).setValue(true); // R
-      sheet.getRange(sheetRow, 19).setValue(true); // S
-      marked48++;
-    } else if (ageMs >= MS_24HR) {
-      sheet.getRange(sheetRow, 18).setValue(true); // R
-      marked24++;
-    }
-  });
-
-  Logger.log('✅ initSLAColumns complete. Marked ' + marked24 + ' cases as 24hr warned, ' + marked48 + ' cases as 48hr warned.');
-}
-
-function debugSchedule() {
-  const ss = SpreadsheetApp.openById(MASTER_DB_ID);
-  const sheet = ss.getSheetByName('SupervisorList');
-  const lastCol = sheet.getLastColumn();
-  const lastRow = sheet.getLastRow();
-
-  // Read header row as values (Date objects)
-  const headerVals = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  // Read header row as display text
-  const headerDisp = sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
-
-  Logger.log('lastRow: ' + lastRow + ' | lastCol: ' + lastCol);
-
-  for (var i = 3; i < headerVals.length; i++) {
-    Logger.log('Col ' + (i+1) + ' | value type: ' + typeof headerVals[i] + 
-               ' | value: ' + headerVals[i] + 
-               ' | display: ' + headerDisp[i] +
-               ' | isDate: ' + (headerVals[i] instanceof Date));
-  }
-
-  // Check today's date label
-  const PHT_OFFSET_MS = 8 * 60 * 60 * 1000;
-  const nowPHT = new Date(Date.now() + PHT_OFFSET_MS);
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const todayLabel = months[nowPHT.getUTCMonth()] + '-' + nowPHT.getUTCDate();
-  Logger.log('Today label we are looking for: ' + todayLabel);
+  ScriptApp.newTrigger('checkSLAWarnings').timeBased().everyHours(1).create();
 }

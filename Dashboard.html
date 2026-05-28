@@ -994,7 +994,7 @@
   ══════════════════════════════════ -->
   <div class="sidebar">
     <div class="sb-header">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_Play_2022_icon.svg/1920px-Google_Play_2022_icon.svg.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
+      <img src="https://www.gstatic.com/images/branding/product/1x/google_play_512dp.png" style="width:32px;height:32px;flex-shrink:0;object-fit:contain;" alt="Google Play">
       <div class="sb-title-wrap">
         <span class="sb-title">Supervisor Cases Dashboard</span>
         <span class="sb-subtitle">Google Play</span>
@@ -1022,9 +1022,41 @@
       Metrics &amp; Reports
     </div>
     <div class="nav-item" data-tab="mine" onclick="filterMyCases()">
-  <span class="material-symbols-outlined">person_pin</span>
-  My Cases
-</div>
+      <span class="material-symbols-outlined">person_pin</span>
+      My Cases
+    </div>
+
+    <!-- ── SIDEBAR FILTERS ── -->
+    <div class="filter-section" id="sidebarFilters" style="margin-top:16px;">
+      <div class="filter-header" onclick="toggleFilter('sidebarFilters')">
+        <span class="filter-title">TEAM FILTERS</span>
+        <span class="material-symbols-outlined filter-toggle-icon">expand_more</span>
+      </div>
+      <div class="filter-options" id="sidebarTeamOptions">
+        <!-- JS Populated -->
+      </div>
+    </div>
+
+    <div class="filter-section" id="sidebarChannelFilters">
+      <div class="filter-header" onclick="toggleFilter('sidebarChannelFilters')">
+        <span class="filter-title">CHANNEL</span>
+        <span class="material-symbols-outlined filter-toggle-icon">expand_more</span>
+      </div>
+      <div class="filter-options">
+        <label class="filter-label chk-chat">
+          <input type="checkbox" checked onchange="toggleChannelFilter('Chat', this)">
+          <span class="checkmark"></span> Chat
+        </label>
+        <label class="filter-label chk-email">
+          <input type="checkbox" checked onchange="toggleChannelFilter('Email', this)">
+          <span class="checkmark"></span> Email
+        </label>
+        <label class="filter-label chk-phone">
+          <input type="checkbox" checked onchange="toggleChannelFilter('Phone', this)">
+          <span class="checkmark"></span> Phone
+        </label>
+      </div>
+    </div>
 
     <!-- ── SIDEBAR SCHEDULE WIDGET ── -->
     <div class="sb-schedule-widget">
@@ -1076,25 +1108,6 @@
       </div>
     </div>
 
-      <!-- M3 Filter Strip -->
-      <div class="filter-strip" id="filterStrip">
-        <div class="filter-chip active" id="chip-all" onclick="setAllTeams(true)">
-          <span class="material-symbols-outlined chip-icon">all_inclusive</span>
-          All Teams
-        </div>
-        <div style="width:1px; height:24px; background:var(--md-sys-color-outline-variant); margin:0 8px;"></div>
-        <div id="dynamicTeamChips" style="display:flex; gap:8px;"></div>
-        <div style="width:1px; height:24px; background:var(--md-sys-color-outline-variant); margin:0 8px;"></div>
-        <div class="filter-chip" id="chip-chat" onclick="toggleChannelFilter('Chat', this)">
-          <span class="material-symbols-outlined chip-icon">chat</span> Chat
-        </div>
-        <div class="filter-chip" id="chip-email" onclick="toggleChannelFilter('Email', this)">
-          <span class="material-symbols-outlined chip-icon">mail</span> Email
-        </div>
-        <div class="filter-chip" id="chip-phone" onclick="toggleChannelFilter('Phone', this)">
-          <span class="material-symbols-outlined chip-icon">call</span> Phone
-        </div>
-    </div>
 
     <div class="main-content">
 
@@ -1509,12 +1522,6 @@
         .replace(/'/g, '&#039;');
     }
 
-    function maskLdap(ldap) {
-      if (!ldap) return '—';
-      var s = String(ldap).split('@')[0].toLowerCase().trim();
-      if (s.length <= 2) return s;
-      return s[0] + '***' + s.slice(-1);
-    }
 
     var TEAM_COLORS = {
   'Team Steven': 'background:#E8F0FE;color:#1967D2',
@@ -1714,29 +1721,25 @@
       document.getElementById('chip-phone').classList.toggle('active', activeChannels.has('Phone'));
     }
 
-    function renderFilterChips() {
-      var teamContainer = document.getElementById('dynamicTeamChips');
+    function renderSidebarFilters() {
+      var teamOptions = document.getElementById('sidebarTeamOptions');
       var teams = {};
       rawActiveCases.forEach(function(c) { teams[c.team] = (teams[c.team] || 0) + 1; });
 
-      var html = '';
+      var html = '<label class="filter-label">' +
+                 '<input type="checkbox" ' + (activeTeams.size === 0 ? 'checked' : '') + ' onchange="setAllTeams(this.checked)">' +
+                 '<span class="checkmark"></span> All Teams</label>';
+
       Object.keys(teams).sort().forEach(function(team) {
         var isActive = activeTeams.has(team);
-        html += '<div class="filter-chip ' + (isActive ? 'active' : '') + '" onclick="toggleTeamFilter(\'' + team + '\', this)">' +
-                team + ' <span style="opacity:0.6; margin-left:4px;">' + teams[team] + '</span></div>';
+        html += '<label class="filter-label">' +
+                '<input type="checkbox" ' + (isActive ? 'checked' : '') + ' onchange="toggleTeamFilter(\'' + team + '\', this)">' +
+                '<span class="checkmark"></span> ' + team + ' <span style="opacity:0.6; margin-left:auto;">' + teams[team] + '</span></label>';
       });
-      teamContainer.innerHTML = html;
-
-      // Update All Teams chip
-      document.getElementById('chip-all').classList.toggle('active', activeTeams.size === 0);
-
-      // Update Channel chips
-      document.getElementById('chip-chat').classList.toggle('active', activeChannels.has('Chat'));
-      document.getElementById('chip-email').classList.toggle('active', activeChannels.has('Email'));
-      document.getElementById('chip-phone').classList.toggle('active', activeChannels.has('Phone'));
+      teamOptions.innerHTML = html;
     }
 
-    function toggleTeamFilter(team, chip) {
+    function toggleTeamFilter(team, cb) {
       if (activeTeams.has(team)) activeTeams.delete(team);
       else activeTeams.add(team);
       applyFilters();
@@ -1747,10 +1750,10 @@
       applyFilters();
     }
 
-    function toggleChannelFilter(chan, chip) {
+    function toggleChannelFilter(chan, cb) {
       if (activeChannels.has(chan)) {
         if (activeChannels.size > 1) activeChannels.delete(chan);
-        else showToast("At least one channel must be selected");
+        else { cb.checked = true; showToast("At least one channel must be selected"); }
       } else {
         activeChannels.add(chan);
       }
@@ -1827,7 +1830,7 @@
 
     function applyFilters(isLoadMore) {
       updateBadges();
-      renderFilterChips();
+      renderSidebarFilters();
       if (currentTab === 'active')   renderActiveUI(getFilteredSet(rawActiveCases));
       else if (currentTab === 'resolved') {
         if (!isLoadMore) { resolvedPage = 1; }
@@ -2047,7 +2050,7 @@
                 '<span class="tag ' + slaTagClass + '" data-sla-ts="' + (c.timestamp || '') + '"><span class="material-symbols-outlined" style="font-size:14px;">schedule</span>Waiting: ' + wait.str + '</span>' +
                 '<span class="tag tag-neutral" style="background:' + (TEAM_COLORS[c.team] ? 'rgba(0,0,0,0.05)' : '') + '">' + safeTeam + '</span>' +
                 callbackBadge +
-                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(maskLdap(claimLdap)) + '</span>' : '') +
+                (isClaimed && !isMine ? '<span class="tag orange" style="background:var(--md-sys-color-secondary-container); color:var(--md-sys-color-on-secondary-container)"><span class="material-symbols-outlined" style="font-size:14px;">lock</span>' + esc(claimLdap) + '</span>' : '') +
                 (isMine ? '<span class="tag" style="background:var(--md-sys-color-primary); color:white;"><span class="material-symbols-outlined" style="font-size:14px;">person</span> Assigned to you</span>' : '') +
               '</div>' +
             '</div>' +
@@ -2406,7 +2409,7 @@ var resolutionType = l1.value + ' > ' + l2.value + (l3 && l3.value ? ' > ' + l3.
                 '<span class="material-symbols-outlined" style="font-size:18px; color:var(--md-sys-color-on-surface-variant)">' + channelIcon + '</span>' +
               '</div>' +
               '<div class="row-sub" style="font-size:13px; margin:4px 0 8px;">' +
-                'Handled by: <strong>' + esc(maskLdap(safeHandledBy)) + '</strong> &bull; ' +
+                'Handled by: <strong>' + esc(safeHandledBy) + '</strong> &bull; ' +
                 (isNaN(d.getTime()) ? '--' : d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit'})) +
               '</div>' +
               '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">' + driverHtml + '</div>' +
