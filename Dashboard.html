@@ -1048,14 +1048,14 @@
       My Cases
     </div>
 
-    <!-- ── SIDEBAR SCHEDULE WIDGET ── -->
-    <div class="sb-schedule-widget">
-      <div class="sb-schedule-header">
-        <span class="sb-schedule-title"> On Shift Support </span>
-        <span class="sb-schedule-link" onclick="switchTab('schedule')">View all →</span>
+    <!-- ── SIDEBAR FILTERS ── -->
+    <div class="filter-section" id="sidebarFilters" style="margin-top:16px;">
+      <div class="filter-header" onclick="toggleFilter('sidebarFilters')">
+        <span class="filter-title">TEAM FILTERS</span>
+        <span class="material-symbols-outlined filter-toggle-icon">expand_more</span>
       </div>
-      <div id="sbScheduleList">
-        <div style="padding:8px 10px;font-size:12px;color:var(--text-muted)">Loading…</div>
+      <div class="filter-options" id="sidebarTeamOptions">
+        <!-- JS Populated -->
       </div>
     </div>
 
@@ -1730,6 +1730,15 @@
 
         return chanMatch && teamMatch && searchMatch && smeMatch && dateMatch;
       });
+      teamContainer.innerHTML = html;
+
+      // Update All Teams chip
+      document.getElementById('chip-all').classList.toggle('active', activeTeams.size === 0);
+
+      // Update Channel chips
+      document.getElementById('chip-chat').classList.toggle('active', activeChannels.has('Chat'));
+      document.getElementById('chip-email').classList.toggle('active', activeChannels.has('Email'));
+      document.getElementById('chip-phone').classList.toggle('active', activeChannels.has('Phone'));
     }
 
     function renderTeamChips() {
